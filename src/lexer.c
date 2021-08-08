@@ -117,20 +117,15 @@ __attribute__((always_inline)) static int do_inject_token() {
  * @return position of the encountered token or NULL if it doesn't exist
  */
 char *ctr_clex_scan(char c) {
-  if (*ctr_code == c)
-    return ctr_code;
-  char *older = ctr_clex_olderptr;
-  ctr_clex_olderptr = ctr_clex_oldptr;
-  ctr_clex_oldptr = ctr_code;
-  while (ctr_code <= ctr_eofcode && *++ctr_code != c) {
-    if (*ctr_code == '\n')
-      ctr_clex_line_number++;
-  }
-  if (ctr_code == ctr_eofcode || *ctr_code != c) {
-    ctr_code = ctr_clex_oldptr;
-    ctr_clex_oldptr = ctr_clex_olderptr;
-    ctr_clex_olderptr = older;
-    return NULL;
+  char *start = ctr_code;
+  while (*ctr_code != c) {
+    if (*ctr_code == '\0') {
+      // restore position
+      ctr_code = start;
+      return NULL;
+    } else if (*ctr_code == '\n') {
+      ++ctr_clex_line_number;
+    }
   }
   return ctr_code;
 }

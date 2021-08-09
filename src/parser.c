@@ -257,7 +257,7 @@ ctr_tnode *ctr_cparse_message(int mode) {
   // lookAheadVal = ctr_clex_tok_value();
   // lookAheadLen = ctr_clex_tok_value_length();
   ctr_clex_putback();
-  isBin = lookAhead != CTR_TOKEN_COLON &&
+  isBin = lookAhead != TokenTypeColon &&
           (ctr_utf8_is_one_cluster(msg, msgpartlen) ||
            ctr_is_binary_alternative(msg, msgpartlen));
   if (mode == 2 && isBin) {
@@ -275,7 +275,7 @@ ctr_tnode *ctr_cparse_message(int mode) {
   }
   int replacement = 0;
   int is_bmap = 0;
-  if (lookAhead == CTR_TOKEN_COLON) {
+  if (lookAhead == TokenTypeColon) {
     if (mode > 0) {
       ctr_clex_putback();
       return m;
@@ -300,21 +300,21 @@ ctr_tnode *ctr_cparse_message(int mode) {
         curlistitem = li;
       }
       t = ctr_clex_tok();
-      if (t == CTR_TOKEN_DOT)
+      if (t == TokenTypeDot)
         break;
-      if (t == CTR_TOKEN_FIN)
+      if (t == TokenTypeFin)
         break;
-      if (t == CTR_TOKEN_CHAIN)
+      if (t == TokenTypeChain)
         break;
-      if (t == CTR_TOKEN_PARCLOSE)
+      if (t == TokenTypeParclose)
         break;
-      if (t == CTR_TOKEN_TUPCLOSE)
+      if (t == TokenTypeTupclose)
         break;
-      if (t == CTR_TOKEN_BLOCKCLOSE)
+      if (t == TokenTypeBlockclose)
         break;
-      // if (t == CTR_TOKEN_FANCY_QUOT_CLOS)
+      // if (t == TokenTypeFancyQuotClos)
       //   break;
-      if (t == CTR_TOKEN_REF) {
+      if (t == TokenTypeRef) {
         long l = ctr_clex_tok_value_length();
         if ((msgpartlen + l) > 255) {
           ctr_cparse_emit_error_unexpected(t, "Message too long\n");
@@ -324,7 +324,7 @@ ctr_tnode *ctr_cparse_message(int mode) {
         *(msg + msgpartlen) = ':';
         msgpartlen++;
         t = ctr_clex_tok();
-        if (t != CTR_TOKEN_COLON) {
+        if (t != TokenTypeColon) {
           ctr_cparse_emit_error_unexpected(t, "Expected a colon.\n");
           ctr_clex_putback();
         }
@@ -333,20 +333,20 @@ ctr_tnode *ctr_cparse_message(int mode) {
     ctr_clex_putback(); /* not a colon so put back */
     m->value = msg;
     m->vlen = msgpartlen;
-  } else if (t == CTR_TOKEN_BLOCKOPEN) {
-    replacement = CTR_TOKEN_BLOCKCLOSE;
+  } else if (t == TokenTypeBlockopen) {
+    replacement = TokenTypeBlockclose;
     goto callShorthand;
-  } else if (t == CTR_TOKEN_BLOCKOPEN_MAP) {
-    replacement = CTR_TOKEN_BLOCKCLOSE;
+  } else if (t == TokenTypeBlockopenMap) {
+    replacement = TokenTypeBlockclose;
     is_bmap = 1;
     goto callShorthand;
-  } else if (t == CTR_TOKEN_FANCY_QUOT_OPEN) {
-    replacement = CTR_TOKEN_FANCY_QUOT_CLOS;
+  } else if (t == TokenTypeFancyQuotOpen) {
+    replacement = TokenTypeFancyQuotClos;
     msgReplacement = "process:";
     msgReplacementLen = 8;
     goto callShorthand;
-  } else if (t == CTR_TOKEN_QUOTE) {
-    replacement = CTR_TOKEN_QUOTE;
+  } else if (t == TokenTypeQuote) {
+    replacement = TokenTypeQuote;
     msgReplacement = "process:";
     msgReplacementLen = 8;
     goto callShorthand;
@@ -356,11 +356,11 @@ ctr_tnode *ctr_cparse_message(int mode) {
     memcpy(msg, msgReplacement, msgReplacementLen);
     msgpartlen = msgReplacementLen;
     li = ctr_heap_allocate_tracked(sizeof(*li));
-    if (nextCallLazy->value == 1 || replacement == CTR_TOKEN_BLOCKCLOSE) {
+    if (nextCallLazy->value == 1 || replacement == TokenTypeBlockclose) {
       if (!replacement)
         nextCallLazy->value--;
       if (!is_bmap) {
-        if (ctr_clex_inject_token(CTR_TOKEN_INV, DOLLAR_SIGN, -2, 1)) {
+        if (ctr_clex_inject_token(TokenTypeInv, DOLLAR_SIGN, -2, 1)) {
           ctr_cparse_emit_error_unexpected(
               t, "lazy call cannot be instantiated at this state");
           return NULL;
@@ -399,9 +399,9 @@ ctr_tnode *ctr_cparse_message(int mode) {
     } else {
       int texpr_res = ctr_transform_template_expr;
       ctr_transform_template_expr = 0;
-      if (replacement == CTR_TOKEN_FANCY_QUOT_CLOS)
+      if (replacement == TokenTypeFancyQuotClos)
         li->node = ctr_cparse_fancy_string();
-      if (replacement == CTR_TOKEN_QUOTE)
+      if (replacement == TokenTypeQuote)
         li->node = ctr_cparse_string();
       else
         li->node = ctr_cparse_tuple(replacement ?: callShorthand->value_e);
@@ -436,18 +436,18 @@ ctr_tlistitem *ctr_cparse_messages(ctr_tnode *r, int mode) {
   ctr_tnode *node = NULL;
   /* explicit chaining (,) only allowed for keyword message: Console write: 3
    * factorial, write: 3 factorial is not possible otherwise. */
-  while (t == CTR_TOKEN_REF ||
-         (t == CTR_TOKEN_CHAIN && node &&
+  while (t == TokenTypeRef ||
+         (t == TokenTypeChain && node &&
           node->type == CTR_AST_NODE_KWMESSAGE && node->modifier != -2) ||
          (t == callShorthand->value) ||
-         (t == CTR_TOKEN_BLOCKOPEN || t == CTR_TOKEN_BLOCKOPEN_MAP) ||
-         (t == CTR_TOKEN_FANCY_QUOT_OPEN) || (t == CTR_TOKEN_QUOTE)) {
-    if (t == CTR_TOKEN_CHAIN) {
+         (t == TokenTypeBlockopen || t == TokenTypeBlockopenMap) ||
+         (t == TokenTypeFancyQuotOpen) || (t == TokenTypeQuote)) {
+    if (t == TokenTypeChain) {
       t = ctr_clex_tok();
-      if (t != CTR_TOKEN_REF) {
+      if (t != TokenTypeRef) {
         ctr_cparse_emit_error_unexpected(t, "Expected message.\n");
         if (speculative_parse)
-          if (ctr_clex_inject_token(CTR_TOKEN_REF, ctr_clex_tok_value() ?: "?",
+          if (ctr_clex_inject_token(TokenTypeRef, ctr_clex_tok_value() ?: "?",
                                     ctr_clex_tok_value_length() ?: 11, 11)) {
             ctr_cparse_emit_error_unexpected(
                 t, "Speculative parsing failed, not enough vector space\n");
@@ -525,7 +525,7 @@ ctr_tnode *ctr_cparse_list_comp(ctr_tnode *main_expr) {
   ctr_clex_putback();
   //[ expression ,,, predicate* ] (skipped generators)
   //               ^
-  if (t == CTR_TOKEN_CHAIN) {
+  if (t == TokenTypeChain) {
     ctr_clex_tok(); // eat the ','
     part1->node = NULL;
     goto parse_predicates;
@@ -538,8 +538,8 @@ ctr_tnode *ctr_cparse_list_comp(ctr_tnode *main_expr) {
   part1->node = gen;
   part1 = gen->nodes;
   part1->node = ctr_cparse_expr(0);
-  while ((t = ctr_clex_tok()) == CTR_TOKEN_CHAIN) {
-    if (ctr_clex_tok() == CTR_TOKEN_CHAIN) {
+  while ((t = ctr_clex_tok()) == TokenTypeChain) {
+    if (ctr_clex_tok() == TokenTypeChain) {
       ctr_clex_tok();
       break; // we're going into the predicates now
     }
@@ -554,7 +554,7 @@ parse_predicates:;
   ctr_clex_putback();
   // [ expression ,, expression* ,, ]
   //                               ^
-  if (t == CTR_TOKEN_TUPCLOSE) // no predicates, so a length-one tuple if it has
+  if (t == TokenTypeTupclose) // no predicates, so a length-one tuple if it has
                                // no gens
   {
     ctr_clex_tok(); // eat the ']'
@@ -576,12 +576,12 @@ parse_predicates:;
   part2->node = pred;
   part2 = pred->nodes;
   part2->node = ctr_cparse_expr(0);
-  while ((t = ctr_clex_tok()) == CTR_TOKEN_CHAIN) {
+  while ((t = ctr_clex_tok()) == TokenTypeChain) {
     part2->next = ctr_heap_allocate_tracked(sizeof(*part1));
     part2 = part2->next;
     part2->node = ctr_cparse_expr(0);
   }
-  if (t != CTR_TOKEN_TUPCLOSE) {
+  if (t != TokenTypeTupclose) {
     // bitch about it
     ctr_cparse_emit_error_unexpected(t, "Expected a ']'\n");
   }
@@ -622,7 +622,7 @@ ctr_tnode *ctr_cparse_lit_esc(int opt) {
     int t = ctr_clex_tok();
     ctr_clex_putback();
     ctr_transform_template_expr = 0;
-    if (t == CTR_TOKEN_PAROPEN) {
+    if (t == TokenTypeParopen) {
       r = ctr_cparse_popen();
       ctr_tnode *f = r->nodes->node;
       ctr_heap_free(r);
@@ -637,7 +637,7 @@ ctr_tnode *ctr_cparse_lit_esc(int opt) {
     int t = ctr_clex_tok();
     ctr_clex_putback();
     ctr_transform_template_expr = 0;
-    if (t == CTR_TOKEN_PAROPEN) {
+    if (t == TokenTypeParopen) {
       r = ctr_cparse_popen();
       r->type = CTR_AST_NODE_EMBED;
       r->modifier = 0;
@@ -716,7 +716,7 @@ ctr_tnode *ctr_cparse_tuple(int ending_tok) {
   }
   // try for a list comprehension: expect ,,
   t = ctr_clex_tok();
-  if (t != CTR_TOKEN_CHAIN && t != ending_tok) { // common element
+  if (t != TokenTypeChain && t != ending_tok) { // common element
     ctr_cparse_emit_error_unexpected(t, "Expected a ',' or a ']'\n");
     return r;
   }
@@ -724,12 +724,12 @@ ctr_tnode *ctr_cparse_tuple(int ending_tok) {
     return r;
   }
   t = ctr_clex_tok();
-  if (t == CTR_TOKEN_CHAIN) { // list comp
+  if (t == TokenTypeChain) { // list comp
     return ctr_cparse_list_comp(r->nodes->node);
   }
   ctr_clex_restore_state(restore_id); // restore after checking for listcomp
 
-  while ((t = ctr_clex_tok()) == CTR_TOKEN_CHAIN) {
+  while ((t = ctr_clex_tok()) == TokenTypeChain) {
     /* okay we have new expr, parse it */
     ctr_tlistitem *paramListItem =
         (ctr_tlistitem *)ctr_heap_allocate_tracked(sizeof(ctr_tlistitem));
@@ -760,7 +760,7 @@ ctr_tnode *ctr_cparse_symbol() {
   ctr_tlistitem *li;
   r = ctr_cparse_create_node(CTR_AST_NODE);
   int t = ctr_clex_tok();
-  if (t != CTR_TOKEN_SYMBOL)
+  if (t != TokenTypeSymbol)
     return NULL;
   ctr_clex_tok();
   r->type = CTR_AST_NODE_SYMBOL;
@@ -788,7 +788,7 @@ ctr_tnode *ctr_cparse_popen() {
   r->nodes = li;
   li->node = ctr_cparse_expr(0);
   t = ctr_clex_tok();
-  if (t != CTR_TOKEN_PARCLOSE) {
+  if (t != TokenTypeParclose) {
     ctr_cparse_emit_error_unexpected(t, "Expected a ')'.\n");
   }
   return r;
@@ -805,13 +805,13 @@ ctr_tnode *ctr_cparse_intern_asm_block_() {
 
   int t = ctr_clex_tok();
   int argidx = -1;
-  while (t == CTR_TOKEN_COLON) {
+  while (t == TokenTypeColon) {
     // arguments to asm _must_ be numbers,
     // they must be used prepended with a colon
     // in the output/input constraints
     // no more than 4 arguments will be processed
     t = ctr_clex_tok();
-    if (t != CTR_TOKEN_REF) {
+    if (t != TokenTypeRef) {
       ctr_cparse_emit_error_unexpected(t, "Expected an argument name\n");
       return speculative_parse ? ctr_fake_parse_hole() : NULL;
     }
@@ -834,7 +834,7 @@ ctr_tnode *ctr_cparse_intern_asm_block_() {
   }
   char *constraint = "\0";
   int att = 1;
-  if (t == CTR_TOKEN_REF) {
+  if (t == TokenTypeRef) {
     int len = ctr_clex_tok_value_length();
     char *tok = ctr_clex_tok_value();
     if (len == 5 && strncasecmp(tok, "intel", 5) == 0)
@@ -847,7 +847,7 @@ ctr_tnode *ctr_cparse_intern_asm_block_() {
     }
     t = ctr_clex_tok();
   }
-  if (t == CTR_TOKEN_PAROPEN) {
+  if (t == TokenTypeParopen) {
     char *begin = ctr_code;
     char *end = ctr_clex_scan(')');
     if (!end) {
@@ -930,7 +930,7 @@ ctr_tnode *ctr_cparse_block_pv(int autocap, int error) {
   t = ctr_clex_tok();
 #if withInlineAsm
   if ((extensionsPra->value & CTR_EXT_ASM_BLOCK) == CTR_EXT_ASM_BLOCK &&
-      t == CTR_TOKEN_REF && ctr_clex_tok_value_length() == 3 &&
+      t == TokenTypeRef && ctr_clex_tok_value_length() == 3 &&
       strncmp(ctr_clex_tok_value(), "asm", 3) == 0)
     return ctr_cparse_intern_asm_block_();
 #endif
@@ -949,20 +949,20 @@ ctr_tnode *ctr_cparse_block_pv(int autocap, int error) {
   paramList->type = CTR_AST_NODE_PARAMLIST;
   codeList->type = CTR_AST_NODE_INSTRLIST;
   first = 1;
-  while (t == CTR_TOKEN_COLON) {
+  while (t == TokenTypeColon) {
     /* okay we have a new parameter, load it */
     t = ctr_clex_tok();
     ctr_tlistitem *paramListItem =
         (ctr_tlistitem *)ctr_heap_allocate_tracked(sizeof(ctr_tlistitem));
     ctr_tnode *paramItem;
-    if (t == CTR_TOKEN_REF) {
+    if (t == TokenTypeRef) {
       paramItem = ctr_cparse_create_node(CTR_AST_NODE);
       long l = ctr_clex_tok_value_length();
       paramItem->value = ctr_heap_allocate_tracked(sizeof(char) * l);
       paramItem->type = CTR_AST_NODE_REFERENCE;
       memcpy(paramItem->value, ctr_clex_tok_value(), l);
       paramItem->vlen = l;
-    } else if (t == CTR_TOKEN_PAROPEN) {
+    } else if (t == TokenTypeParopen) {
       ctr_clex_putback();
       paramItem = ctr_cparse_popen();
     } else {
@@ -1023,19 +1023,19 @@ ctr_tnode *ctr_cparse_block_pv(int autocap, int error) {
     codeList->nodes = codeListItem;
     previousCodeListItem = codeListItem;
   } else {
-    while ((first || t == CTR_TOKEN_DOT)) {
+    while ((first || t == TokenTypeDot)) {
       ctr_tlistitem *codeListItem;
       ctr_tnode *codeNode;
       if (first) {
         ctr_clex_putback();
       }
       t = ctr_clex_tok();
-      if (t == CTR_TOKEN_BLOCKCLOSE)
+      if (t == TokenTypeBlockclose)
         break;
       ctr_clex_putback();
       codeListItem =
           (ctr_tlistitem *)ctr_heap_allocate_tracked(sizeof(ctr_tlistitem));
-      if (t == CTR_TOKEN_RET) {
+      if (t == TokenTypeRet) {
         codeNode = ctr_cparse_ret();
       } else {
         codeNode = ctr_cparse_expr(0);
@@ -1050,7 +1050,7 @@ ctr_tnode *ctr_cparse_block_pv(int autocap, int error) {
         previousCodeListItem = codeListItem;
       }
       t = ctr_clex_tok();
-      if (t != CTR_TOKEN_DOT && !autocap) {
+      if (t != TokenTypeDot && !autocap) {
         ctr_cparse_emit_error_unexpected(t, "Expected a dot (.).\n");
       }
     }
@@ -1077,7 +1077,7 @@ ctr_tnode *ctr_cparse_ref() {
       strncmp(ctr_clex_tok_value(), "pure", 4) == 0) {
     // pure { ... }
     int t = ctr_clex_tok();
-    if (t != CTR_TOKEN_BLOCKOPEN) {
+    if (t != TokenTypeBlockopen) {
       ctr_clex_putback();
       ctr_clex_putback();
       ctr_clex_tok();
@@ -1110,11 +1110,11 @@ the_else:;
   if (strncmp(ctr_clex_keyword_my, tmp, ctr_clex_keyword_my_len) == 0 &&
       r->vlen == ctr_clex_keyword_my_len) {
     int t = ctr_clex_tok();
-    if (t != CTR_TOKEN_REF) {
+    if (t != TokenTypeRef) {
       ctr_cparse_emit_error_unexpected(
           t, "'My' should always be followed by a property name!\n");
       if (speculative_parse)
-        if (ctr_clex_inject_token(CTR_TOKEN_REF, ctr_clex_tok_value(),
+        if (ctr_clex_inject_token(TokenTypeRef, ctr_clex_tok_value(),
                                   ctr_clex_tok_value_length(),
                                   ctr_clex_tok_value_length())) {
           ctr_cparse_emit_error_unexpected(
@@ -1129,11 +1129,11 @@ the_else:;
   if (strncmp(ctr_clex_keyword_var, tmp, ctr_clex_keyword_var_len) == 0 &&
       r->vlen == ctr_clex_keyword_var_len) {
     int t = ctr_clex_tok();
-    if (t != CTR_TOKEN_REF) {
+    if (t != TokenTypeRef) {
       ctr_cparse_emit_error_unexpected(
           t, "'var' should always be follwed by a property name!\n");
       if (speculative_parse)
-        if (ctr_clex_inject_token(CTR_TOKEN_REF, ctr_clex_tok_value(),
+        if (ctr_clex_inject_token(TokenTypeRef, ctr_clex_tok_value(),
                                   ctr_clex_tok_value_length(),
                                   ctr_clex_tok_value_length())) {
           ctr_cparse_emit_error_unexpected(
@@ -1148,12 +1148,12 @@ the_else:;
   if (strncmp(ctr_clex_keyword_const, tmp, ctr_clex_keyword_const_len) == 0 &&
       r->vlen == ctr_clex_keyword_const_len) {
     int t = ctr_clex_tok();
-    if (t != CTR_TOKEN_REF) {
+    if (t != TokenTypeRef) {
       ctr_cparse_emit_error_unexpected(
           t,
           "'const' must always be followed by a single reference/property\n");
       if (speculative_parse)
-        if (ctr_clex_inject_token(CTR_TOKEN_REF, ctr_clex_tok_value(),
+        if (ctr_clex_inject_token(TokenTypeRef, ctr_clex_tok_value(),
                                   ctr_clex_tok_value_length(),
                                   ctr_clex_tok_value_length())) {
           ctr_cparse_emit_error_unexpected(
@@ -1169,18 +1169,18 @@ the_else:;
       r->vlen == ctr_clex_keyword_static_len) {
     if ((extensionsPra->value & CTR_EXT_FROZEN_K) != CTR_EXT_FROZEN_K) {
       ctr_cparse_emit_error_unexpected(
-          CTR_TOKEN_REF,
+          TokenTypeRef,
           "XFrozen extension is required to use the `" CTR_DICT_STATIC
           "' modifier");
       return NULL;
     }
     int t = ctr_clex_tok();
-    if (t != CTR_TOKEN_REF) {
+    if (t != TokenTypeRef) {
       ctr_cparse_emit_error_unexpected(
           t, "'" CTR_DICT_STATIC
              "' must always be followed by a single property name\n");
       if (speculative_parse)
-        if (ctr_clex_inject_token(CTR_TOKEN_REF, ctr_clex_tok_value(),
+        if (ctr_clex_inject_token(TokenTypeRef, ctr_clex_tok_value(),
                                   ctr_clex_tok_value_length(),
                                   ctr_clex_tok_value_length())) {
           ctr_cparse_emit_error_unexpected(
@@ -1194,11 +1194,11 @@ the_else:;
     /* check precondition just in case */
     t = ctr_clex_tok();
     ctr_clex_putback();
-    if (t != CTR_TOKEN_ASSIGNMENT) {
+    if (t != TokenTypeAssignment) {
       ctr_cparse_emit_error_unexpected(
           t, "'" CTR_DICT_STATIC "' variable must be in an assignment");
       if (speculative_parse)
-        if (ctr_clex_inject_token(CTR_TOKEN_ASSIGNMENT, "is", 2, 2)) {
+        if (ctr_clex_inject_token(TokenTypeAssignment, "is", 2, 2)) {
           ctr_cparse_emit_error_unexpected(
               t, "Speculative parsing failed, not enough vector space\n");
           return NULL;
@@ -1347,13 +1347,13 @@ ctr_tnode *ctr_cparse_number() {
   memcpy(r->value, n, l);
   r->vlen = l;
   int t = ctr_clex_tok();
-  if (t == CTR_TOKEN_DOT) {
+  if (t == TokenTypeDot) {
     // NUMBER DOT
     t = ctr_clex_tok();
-    if (t == CTR_TOKEN_DOT) {
+    if (t == TokenTypeDot) {
       // NUMBER DOT DOT
       t = ctr_clex_tok();
-      if (t == CTR_TOKEN_NUMBER) { // it's a range
+      if (t == TokenTypeNumber) { // it's a range
         // NUMBER DOT DOT NUMBER
         char *ne;
         ctr_tnode *re = ctr_cparse_create_node(CTR_AST_NODE);
@@ -1365,11 +1365,11 @@ ctr_tnode *ctr_cparse_number() {
         memcpy(re->value, ne, le);
         re->vlen = le;
         t = ctr_clex_tok();
-        if (t == CTR_TOKEN_DOT) {
+        if (t == TokenTypeDot) {
           t = ctr_clex_tok();
-          if (t == CTR_TOKEN_DOT) {
+          if (t == TokenTypeDot) {
             t = ctr_clex_tok();
-            if (t == CTR_TOKEN_NUMBER) { // it's a range with a specific step
+            if (t == TokenTypeNumber) { // it's a range with a specific step
               ctr_tnode *rs = re;
               ne = ctr_clex_tok_value();
               le = ctr_clex_tok_value_length();
@@ -1384,19 +1384,19 @@ ctr_tnode *ctr_cparse_number() {
                   /* step = */ rs,
                   /* to   = */ re);
               return rv;
-            } else if (t != CTR_TOKEN_FIN)
+            } else if (t != TokenTypeFin)
               ctr_clex_putback();
-          } else if (t != CTR_TOKEN_FIN)
+          } else if (t != TokenTypeFin)
             ctr_clex_putback();
-        } else if (t != CTR_TOKEN_FIN)
+        } else if (t != TokenTypeFin)
           ctr_clex_putback();
         ctr_tnode *rv = ctr_cparse_create_generator_node_simple(
             /* from = */ r,
             /* to   = */ re);
         return rv;
-      } else if (t != CTR_TOKEN_FIN)
+      } else if (t != TokenTypeFin)
         ctr_clex_putback();
-    } else if (t != CTR_TOKEN_FIN)
+    } else if (t != TokenTypeFin)
       ctr_clex_putback();
   }
   ctr_clex_putback();
@@ -1460,35 +1460,35 @@ ctr_tnode *ctr_cparse_receiver() {
   t = ctr_clex_tok();
   ctr_clex_putback();
   switch (t) {
-  case CTR_TOKEN_NIL:
+  case TokenTypeNil:
     return ctr_cparse_nil();
-  case CTR_TOKEN_BOOLEANYES:
+  case TokenTypeBooleanyes:
     return ctr_cparse_true();
-  case CTR_TOKEN_BOOLEANNO:
+  case TokenTypeBooleanno:
     return ctr_cparse_false();
-  case CTR_TOKEN_NUMBER:
+  case TokenTypeNumber:
     return ctr_cparse_number();
-  case CTR_TOKEN_QUOTE:
+  case TokenTypeQuote:
     return ctr_cparse_string();
-  case CTR_TOKEN_FANCY_QUOT_OPEN:
+  case TokenTypeFancyQuotOpen:
     return ctr_cparse_fancy_string();
-  case CTR_TOKEN_REF:
+  case TokenTypeRef:
     return ctr_cparse_ref();
-  case CTR_TOKEN_BLOCKOPEN:
+  case TokenTypeBlockopen:
     return ctr_cparse_block();
-  case CTR_TOKEN_BLOCKOPEN_MAP: {
+  case TokenTypeBlockopenMap: {
     ctr_tnode *t = ctr_cparse_block_capture();
     t->lexical = 1;
     t->nodes->next->node->lexical = 1;
     return t;
   }
-  case CTR_TOKEN_PAROPEN:
+  case TokenTypeParopen:
     return ctr_cparse_popen();
-  case CTR_TOKEN_TUPOPEN:
-    return ctr_cparse_tuple(CTR_TOKEN_TUPCLOSE);
-  case CTR_TOKEN_LITERAL_ESC:
-    return ctr_cparse_lit_esc(CTR_TOKEN_TUPCLOSE);
-  case CTR_TOKEN_SYMBOL:
+  case TokenTypeTupopen:
+    return ctr_cparse_tuple(TokenTypeTupclose);
+  case TokenTypeLiteralEsc:
+    return ctr_cparse_lit_esc(TokenTypeTupclose);
+  case TokenTypeSymbol:
     return ctr_cparse_symbol();
   default:
     /* This function always exits, so return a dummy value. */
@@ -1541,22 +1541,22 @@ ctr_tnode *ctr_cparse_expr(int mode) {
     return r;
 
   /* user tries to put colon directly after recipient */
-  if (t2 == CTR_TOKEN_COLON) {
+  if (t2 == TokenTypeColon) {
     /* Parse as if we had a "me" before this */
     ctr_clex_load_state(lexer_state);
-    if (ctr_clex_inject_token(CTR_TOKEN_REF, me_s, 2, 2))
+    if (ctr_clex_inject_token(TokenTypeRef, me_s, 2, 2))
       ctr_cparse_emit_error_unexpected(
           t2, "Recipient cannot be followed by a colon in this state.\n");
     return ctr_cparse_expr(mode);
   }
 
-  if (t2 == CTR_TOKEN_ASSIGNMENT) {
+  if (t2 == TokenTypeAssignment) {
     // if ( r->type != CTR_AST_NODE_REFERENCE ) {
     //     ctr_cparse_emit_error_unexpected( t2, "Invalid left-hand
     //     assignment.\n" ); exit(1);
     // }
     e = ctr_cparse_assignment(r);
-  } else if (t2 == CTR_TOKEN_PASSIGNMENT) {
+  } else if (t2 == TokenTypePassignment) {
     if (r->type == CTR_AST_NODE_REFERENCE) // it's an alias for my REF is EXPR
       r->modifier = 1;                     // set private */
     e = ctr_cparse_assignment(r);          // go as usual
@@ -1580,15 +1580,15 @@ ctr_tnode *ctr_cparse_expr(int mode) {
        e->nodes->next->node->nodes->next =
        ctr_heap_allocate(sizeof(ctr_tlistitem));
        e->nodes->next->node->nodes->next->node = r->nodes->next->node; */
-  } else if (t2 != CTR_TOKEN_DOT && t2 != CTR_TOKEN_PARCLOSE &&
-             t2 != CTR_TOKEN_CHAIN && t2 != CTR_TOKEN_TUPCLOSE &&
-             t2 != CTR_TOKEN_FANCY_QUOT_CLOS) {
+  } else if (t2 != TokenTypeDot && t2 != TokenTypeParclose &&
+             t2 != TokenTypeChain && t2 != TokenTypeTupclose &&
+             t2 != TokenTypeFancyQuotClos) {
     e = ctr_cparse_create_node(CTR_AST_NODE);
     e->type = CTR_AST_NODE_EXPRMESSAGE;
     nodes = ctr_cparse_messages(r, mode);
     int tv = ctr_clex_tok();
     int vtv = 0;
-    while (tv == CTR_TOKEN_INV) {
+    while (tv == TokenTypeInv) {
       // arg0 `callee` arg1
       //^    ^tv
       //`- receiver
@@ -1625,7 +1625,7 @@ ctr_tnode *ctr_cparse_expr(int mode) {
       if (fix.lazy) {
         int t = ctr_clex_tok();
         ctr_clex_putback();
-        if (t == CTR_TOKEN_TUPOPEN) {
+        if (t == TokenTypeTupopen) {
           ctr_transform_template_expr = 2;
         } else {
           ctr_transform_template_expr = 1;
@@ -1695,8 +1695,8 @@ ctr_tnode *ctr_cparse_ret() {
  * Generates a node to represent the end of a program.
  */
 ctr_tnode *ctr_cparse_fin() {
-  callShorthand->value = CTR_TOKEN_TUPOPEN;
-  callShorthand->value_e = CTR_TOKEN_TUPCLOSE;
+  callShorthand->value = TokenTypeTupopen;
+  callShorthand->value_e = TokenTypeTupclose;
   extensionsPra->value = 0;
   // clear_fixity_map();
   ctr_tnode *f;
@@ -1733,9 +1733,9 @@ ctr_tnode *ctr_cparse_comptime() {
   char ret = 0;
   int discard = 0;
   int t = ctr_clex_tok();
-  if (t == CTR_TOKEN_TUPOPEN) {
-    while ((t = ctr_clex_tok()) != CTR_TOKEN_TUPCLOSE) {
-      if (t == CTR_TOKEN_REF) {
+  if (t == TokenTypeTupopen) {
+    while ((t = ctr_clex_tok()) != TokenTypeTupclose) {
+      if (t == TokenTypeRef) {
         if (ctr_clex_tok_value_length() == 7 &&
             strncmp(ctr_clex_tok_value(), "discard", 7) == 0)
           discard = 1;
@@ -1758,12 +1758,12 @@ ctr_tnode *ctr_cparse_comptime() {
   }
   if (!ctr_ast_is_splice(val)) {
     ctr_cparse_emit_error_unexpected(
-        CTR_TOKEN_INV,
+        TokenTypeInv,
         "Expected an AST splice as a return value from a comptime expression");
     return speculative_parse ? ctr_fake_parse_hole() : NULL;
   }
   if (!val->value.rvalue || !val->value.rvalue->ptr) {
-    ctr_cparse_emit_error_unexpected(CTR_TOKEN_INV,
+    ctr_cparse_emit_error_unexpected(TokenTypeInv,
                                      "Expected a valid AST splice as a return "
                                      "value from a comptime expression");
     return speculative_parse ? ctr_fake_parse_hole() : NULL;
@@ -1781,32 +1781,32 @@ ctr_tlistitem *ctr_cparse_statement() {
       (ctr_tlistitem *)ctr_heap_allocate_tracked(sizeof(ctr_tlistitem));
   int t = ctr_clex_tok();
   ctr_clex_putback();
-  if (t == CTR_TOKEN_FIN) {
+  if (t == TokenTypeFin) {
     li->node = ctr_cparse_fin();
     return li;
-  } else if (t == CTR_TOKEN_RET) {
+  } else if (t == TokenTypeRet) {
     li->node = ctr_cparse_ret();
   } else {
     li->node = ctr_cparse_expr(0);
   }
   t = ctr_clex_tok();
-  if (t != CTR_TOKEN_DOT) {
-    if (t == CTR_TOKEN_QUOTE || t == CTR_TOKEN_FANCY_QUOT_OPEN) {
+  if (t != TokenTypeDot) {
+    if (t == TokenTypeQuote || t == TokenTypeFancyQuotOpen) {
       ctr_cparse_emit_error_unexpected(t, "Expected a closing quote.\n");
       if (speculative_parse)
         if (ctr_clex_inject_token(
-                t == CTR_TOKEN_QUOTE ? t : CTR_TOKEN_FANCY_QUOT_CLOS, "'", 1,
+                t == TokenTypeQuote ? t : TokenTypeFancyQuotClos, "'", 1,
                 1)) {
           ctr_cparse_emit_error_unexpected(
               t, "Speculative parsing failed, not enough vector space\n");
           return NULL;
         }
     } else {
-      if (t != CTR_TOKEN_FIN) {
+      if (t != TokenTypeFin) {
         ctr_cparse_emit_error_unexpected(t, "Expected a dot (.).\n");
         if (speculative_parse) {
           ctr_clex_putback();
-          if (ctr_clex_inject_token(CTR_TOKEN_DOT, ".", 1, 1)) {
+          if (ctr_clex_inject_token(TokenTypeDot, ".", 1, 1)) {
             ctr_cparse_emit_error_unexpected(
                 t, "Speculative parsing failed, not enough vector space\n");
             return NULL;

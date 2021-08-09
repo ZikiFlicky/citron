@@ -72,31 +72,33 @@ extern "C" {
 /**
  * Define the Citron tokens
  */
-#define CTR_TOKEN_REF 1
-#define CTR_TOKEN_QUOTE 2
-#define CTR_TOKEN_NUMBER 3
-#define CTR_TOKEN_PAROPEN 4
-#define CTR_TOKEN_PARCLOSE 5
-#define CTR_TOKEN_BLOCKOPEN 6
-#define CTR_TOKEN_BLOCKOPEN_MAP 7
-#define CTR_TOKEN_BLOCKCLOSE 8
-#define CTR_TOKEN_COLON 9
-#define CTR_TOKEN_DOT 10
-#define CTR_TOKEN_CHAIN 11
-#define CTR_TOKEN_BOOLEANYES 13
-#define CTR_TOKEN_BOOLEANNO 14
-#define CTR_TOKEN_NIL 15
-#define CTR_TOKEN_ASSIGNMENT 16
-#define CTR_TOKEN_RET 17
-#define CTR_TOKEN_TUPOPEN 18
-#define CTR_TOKEN_TUPCLOSE 19
-#define CTR_TOKEN_PASSIGNMENT 20
-#define CTR_TOKEN_SYMBOL 21
-#define CTR_TOKEN_LITERAL_ESC 22
-#define CTR_TOKEN_INV 23
-#define CTR_TOKEN_FANCY_QUOT_OPEN 25
-#define CTR_TOKEN_FANCY_QUOT_CLOS 36
-#define CTR_TOKEN_FIN 99
+enum TokenType {
+	TokenTypeRef = 1,
+	TokenTypeQuote,
+	TokenTypeNumber,
+	TokenTypeParopen,
+	TokenTypeParclose,
+	TokenTypeBlockopen,
+	TokenTypeBlockopenMap,
+	TokenTypeBlockclose,
+	TokenTypeColon,
+	TokenTypeDot,
+	TokenTypeChain,
+	TokenTypeBooleanyes,
+	TokenTypeBooleanno,
+	TokenTypeNil,
+	TokenTypeAssignment,
+	TokenTypeRet,
+	TokenTypeTupopen,
+	TokenTypeTupclose,
+	TokenTypePassignment,
+	TokenTypeSymbol,
+	TokenTypeLiteralEsc,
+	TokenTypeInv,
+	TokenTypeFancyQuotOpen,
+	TokenTypeFancyQuotClos,
+	TokenTypeFin,
+};
 //
 //
 #define EXIT_ON_ERROR //Exit on parse error.
@@ -527,7 +529,7 @@ struct lexer_state {
     int inject_index; //<- this is not sure to work
 };
 void 	ctr_clex_load(char* prg);
-int 	ctr_clex_tok();
+enum TokenType 	ctr_clex_tok();
 char* 	ctr_clex_tok_value();
 long    ctr_clex_tok_value_length();
 void 	ctr_clex_putback();
@@ -535,12 +537,12 @@ char*	ctr_clex_readstr();
 char*	ctr_clex_readfstr();
 char* ctr_clex_scan(char c);
 char* ctr_clex_scan_balanced(char c, char d);
-char*   ctr_clex_tok_describe( int token );
+char*   ctr_clex_tok_describe( enum TokenType token );
 int     ctr_clex_save_state();
 int     ctr_clex_dump_state(struct lexer_state*);
 int     ctr_clex_restore_state( int id );
 int     ctr_clex_load_state(struct lexer_state);
-int     ctr_clex_inject_token( int token, const char* value, const int vlen, const int real_vlen);
+int     ctr_clex_inject_token( enum TokenType token, const char* value, const int vlen, const int real_vlen);
 void    ctr_match_toggle_pragma();
 void    ctr_lex_parse_pragma();
 CTR_H_DECLSPEC char*   ctr_clex_code_init;
@@ -575,7 +577,7 @@ void ctr_lex_load(char* prg, size_t len);
 char* ctr_lex_tok_value();
 long ctr_lex_tok_value_length();
 void ctr_lex_putback();
-int ctr_lex_tok();
+enum TokenType ctr_lex_tok();
 char* ctr_lex_readstr();
 void ctr_lex_skip(int len);
 ctr_object* ctr_lex_get_buf_str();

@@ -46,8 +46,8 @@ ctr_code_pragma oneline_p = {.type = 't', .value = 0},
                 callshorth =
 
                     {.type = 'o',
-                     .value = CTR_TOKEN_TUPOPEN,
-                     .value_e = CTR_TOKEN_TUPCLOSE},
+                     .value = TokenTypeTupopen,
+                     .value_e = TokenTypeTupclose},
                 extpragmas =
 
                     {.type = 'o', .value = 0},

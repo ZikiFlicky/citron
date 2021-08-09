@@ -188,73 +188,73 @@ void ctr_lex_load(char *prg, ctr_size len) {
  */
 char *ctr_lex_tok_value() { return ctr_lex_buffer; }
 
-char *ctr_lex_tok_describe(int token) {
+char *ctr_lex_tok_describe(enum TokenType token) {
   char *description;
   switch (token) {
-  case CTR_TOKEN_RET:
+  case TokenTypeRet:
     description = ctr_lex_desc_tok_ret;
     break;
-  case CTR_TOKEN_ASSIGNMENT:
+  case TokenTypeAssignment:
     description = ctr_lex_desc_tok_assignment;
     break;
-  case CTR_TOKEN_PASSIGNMENT:
+  case TokenTypePassignment:
     description = ctr_lex_desc_tok_passignment;
     break;
-  case CTR_TOKEN_BLOCKCLOSE:
+  case TokenTypeBlockclose:
     description = ctr_lex_desc_tok_blockclose;
     break;
-  case CTR_TOKEN_BLOCKOPEN:
+  case TokenTypeBlockopen:
     description = ctr_lex_desc_tok_blockopen;
     break;
-  case CTR_TOKEN_BLOCKOPEN_MAP:
+  case TokenTypeBlockopenMap:
     description = ctr_lex_desc_tok_blockopen_map;
     break;
-  case CTR_TOKEN_BOOLEANNO:
+  case TokenTypeBooleanno:
     description = ctr_lex_desc_tok_booleanno;
     break;
-  case CTR_TOKEN_BOOLEANYES:
+  case TokenTypeBooleanyes:
     description = ctr_lex_desc_tok_booleanyes;
     break;
-  case CTR_TOKEN_CHAIN:
+  case TokenTypeChain:
     description = ctr_lex_desc_tok_chain;
     break;
-  case CTR_TOKEN_COLON:
+  case TokenTypeColon:
     description = ctr_lex_desc_tok_colon;
     break;
-  case CTR_TOKEN_DOT:
+  case TokenTypeDot:
     description = ctr_lex_desc_tok_dot;
     break;
-  case CTR_TOKEN_FIN:
+  case TokenTypeFin:
     description = ctr_lex_desc_tok_fin;
     break;
-  case CTR_TOKEN_NIL:
+  case TokenTypeNil:
     description = ctr_lex_desc_tok_nil;
     break;
-  case CTR_TOKEN_NUMBER:
+  case TokenTypeNumber:
     description = ctr_lex_desc_tok_number;
     break;
-  case CTR_TOKEN_PARCLOSE:
+  case TokenTypeParclose:
     description = ctr_lex_desc_tok_parclose;
     break;
-  case CTR_TOKEN_PAROPEN:
+  case TokenTypeParopen:
     description = ctr_lex_desc_tok_paropen;
     break;
-  case CTR_TOKEN_QUOTE:
+  case TokenTypeQuote:
     description = ctr_lex_desc_tok_quote;
     break;
-  case CTR_TOKEN_REF:
+  case TokenTypeRef:
     description = ctr_lex_desc_tok_ref;
     break;
-  case CTR_TOKEN_TUPOPEN:
+  case TokenTypeTupopen:
     description = ctr_lex_desc_tok_tupopen;
     break;
-  case CTR_TOKEN_TUPCLOSE:
+  case TokenTypeTupclose:
     description = ctr_lex_desc_tok_tupclose;
     break;
-  case CTR_TOKEN_SYMBOL:
+  case TokenTypeSymbol:
     description = ctr_lex_desc_tok_symbol;
     break;
-  case CTR_TOKEN_LITERAL_ESC:
+  case TokenTypeLiteralEsc:
     description = ctr_lex_desc_tok_lit_esc;
     break;
   default:
@@ -304,9 +304,9 @@ int ctr_lex_is_valid_digit_in_base(char c, int b) {
  * Reads the next token from the program buffer and selects this
  * token.
  */
-int ctr_lex_tok() {
+enum TokenType ctr_lex_tok() {
   if (ctr_code == ctr_eofcode) {
-    return CTR_TOKEN_FIN;
+    return TokenTypeFin;
   }
   char c;
   int i, comment_mode, presetToken, pragma_mode;
@@ -322,22 +322,22 @@ int ctr_lex_tok() {
   /* i.e. transforms ' $$x ' into: ' ' + x + ' '. */
   switch (ctr_string_interpolation) {
   case 1:
-    presetToken = CTR_TOKEN_QUOTE;
+    presetToken = TokenTypeQuote;
     break;
   case 2:
   case 4:
     memcpy(ctr_lex_buffer, "+", 1);
     ctr_lex_tokvlen = 1;
-    presetToken = CTR_TOKEN_REF;
+    presetToken = TokenTypeRef;
     break;
   case 3:
     memcpy(ctr_lex_buffer, ivarname, ivarlen);
     ctr_lex_tokvlen = ivarlen;
-    presetToken = CTR_TOKEN_REF;
+    presetToken = TokenTypeRef;
     break;
   case 5:
     ctr_code = ctr_code_eoi;
-    presetToken = CTR_TOKEN_QUOTE;
+    presetToken = TokenTypeQuote;
     break;
   }
   /* return the preset token, and transition to next state */
@@ -350,13 +350,13 @@ int ctr_lex_tok() {
    * a 'fake quote' (?>') */
   if (ctr_lex_verbatim_mode == 1 &&
       ctr_lex_verbatim_mode_insert_quote == (uintptr_t)ctr_code) {
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
   }
 
   if (ctr_code != ctr_eofcode && *ctr_code == '\n' && check_next_line_empty() &&
       oneLineExpressions->value) {
     ctr_code++;
-    return CTR_TOKEN_DOT;
+    return TokenTypeDot;
   }
 
   c = *ctr_code;
@@ -373,20 +373,20 @@ int ctr_lex_tok() {
       commented_s++;
   }
   if (ctr_code == ctr_eofcode) {
-    return CTR_TOKEN_FIN;
+    return TokenTypeFin;
   }
   if (c == '\\') {
     ctr_code++;
     int t = ctr_clex_tok();
     ctr_clex_putback();
-    if (t != CTR_TOKEN_COLON) { // HACK This thing here returns a REF<\>, while
+    if (t != TokenTypeColon) { // HACK This thing here returns a REF<\>, while
                                 // the real lexer returns a BLOCKOPEN_MAP<>, and
                                 // sets a flag.
       ctr_lex_tokvlen = 1;
       *ctr_lex_buffer = '\\';
-      return CTR_TOKEN_REF;
+      return TokenTypeRef;
     }
-    return CTR_TOKEN_SYMBOL;
+    return TokenTypeSymbol;
   }
   if (c == '$' && ctr_code + 1 < ctr_eofcode) {
     char _t = *(++ctr_code);
@@ -398,19 +398,19 @@ int ctr_lex_tok() {
     switch (_t) {
     case '(':
       ctr_lex_tokvlen = -1; // literal escape mode
-      return CTR_TOKEN_LITERAL_ESC;
+      return TokenTypeLiteralEsc;
     case '[':
       ctr_lex_tokvlen = -2; // tuple escape mode
-      return CTR_TOKEN_LITERAL_ESC;
+      return TokenTypeLiteralEsc;
     case '`':
       ctr_lex_tokvlen = -5; // literal embed
-      return CTR_TOKEN_LITERAL_ESC;
+      return TokenTypeLiteralEsc;
     case '\'': // quote
       q = 1;
     case '!': // literal unescape
       if (ctr_code + 1 < ctr_eofcode && !isspace(*(++ctr_code))) {
         ctr_lex_tokvlen = -3 - q; // unescape mode (q=1 quote)
-        return CTR_TOKEN_LITERAL_ESC;
+        return TokenTypeLiteralEsc;
       }
       ctr_code--;
     }
@@ -419,50 +419,50 @@ int ctr_lex_tok() {
   }
   if (c == '(') {
     ctr_code++;
-    return CTR_TOKEN_PAROPEN;
+    return TokenTypeParopen;
   }
   if (c == ')') {
     ctr_code++;
-    return CTR_TOKEN_PARCLOSE;
+    return TokenTypeParclose;
   }
   if (c == '[') {
     ctr_code++;
-    return CTR_TOKEN_TUPOPEN;
+    return TokenTypeTupopen;
   }
   if (c == ']') {
     ctr_code++;
-    return CTR_TOKEN_TUPCLOSE;
+    return TokenTypeTupclose;
   }
   if (c == '{') {
     ctr_code++;
     if (ctr_code != ctr_eofcode && (c = *ctr_code) == '\\') {
       ctr_code++;
-      return CTR_TOKEN_BLOCKOPEN_MAP;
+      return TokenTypeBlockopenMap;
     } else
-      return CTR_TOKEN_BLOCKOPEN;
+      return TokenTypeBlockopen;
   }
   if (c == '}') {
     ctr_code++;
-    return CTR_TOKEN_BLOCKCLOSE;
+    return TokenTypeBlockclose;
   }
   if (c == '.') {
     ctr_code++;
-    return CTR_TOKEN_DOT;
+    return TokenTypeDot;
   }
   if (c == ',') {
     ctr_code++;
-    return CTR_TOKEN_CHAIN;
+    return TokenTypeChain;
   }
   if (((c == 'i') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == 's') &&
        isspace(*(ctr_code + 2))) ||
       ((c == ':') && (ctr_code + 1) < ctr_eofcode &&
        (*(ctr_code + 1) == '='))) {
     ctr_code += 2;
-    return CTR_TOKEN_ASSIGNMENT;
+    return TokenTypeAssignment;
   }
   if ((c == '=') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == '>')) {
     ctr_code += 2;
-    return CTR_TOKEN_PASSIGNMENT;
+    return TokenTypePassignment;
   }
   if (c == ':' /*&& ctr_code+1!=ctr_eofcode && *(ctr_code+1) != ':' */) {
     int is_name = 0;
@@ -476,24 +476,24 @@ int ctr_lex_tok() {
     if (is_name) {
       if (ctr_lex_tokvlen > 1)
         ctr_code--;
-      return CTR_TOKEN_REF;
+      return TokenTypeRef;
     }
-    return CTR_TOKEN_COLON;
+    return TokenTypeColon;
   }
   if (c == '^') {
     ctr_code++;
-    return CTR_TOKEN_RET;
+    return TokenTypeRet;
   }
   //↑
   if ((ctr_code + 2) < ctr_eofcode && (uint8_t)c == 226 &&
       ((uint8_t) * (ctr_code + 1) == 134) &&
       ((uint8_t) * (ctr_code + 2) == 145)) {
     ctr_code += 3;
-    return CTR_TOKEN_RET;
+    return TokenTypeRet;
   }
   if (c == '\'') {
     ctr_code++;
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
   }
   if ((c == '-' && (ctr_code + 1) < ctr_eofcode && isdigit(*(ctr_code + 1))) ||
       isdigit(c)) {
@@ -525,7 +525,7 @@ int ctr_lex_tok() {
     }
     if (c == '.' && (ctr_code + 1 <= ctr_eofcode) &&
         !ctr_lex_is_valid_digit_in_base(toupper(*(ctr_code + 1)), base)) {
-      return CTR_TOKEN_NUMBER;
+      return TokenTypeNumber;
     }
     if (c == '.') {
       ctr_lex_buffer[i] = c;
@@ -542,24 +542,24 @@ int ctr_lex_tok() {
       c = toupper(*ctr_code);
     }
     c = *ctr_code;
-    return CTR_TOKEN_NUMBER;
+    return TokenTypeNumber;
   }
   if (strncmp(ctr_code, "True", 4) == 0) {
     if (ctr_lex_is_delimiter(*(ctr_code + 4))) {
       ctr_code += 4;
-      return CTR_TOKEN_BOOLEANYES;
+      return TokenTypeBooleanyes;
     }
   }
   if (strncmp(ctr_code, "False", 5) == 0) {
     if (ctr_lex_is_delimiter(*(ctr_code + 5))) {
       ctr_code += 5;
-      return CTR_TOKEN_BOOLEANNO;
+      return TokenTypeBooleanno;
     }
   }
   if (strncmp(ctr_code, "Nil", 3) == 0) {
     if (ctr_lex_is_delimiter(*(ctr_code + 3))) {
       ctr_code += 3;
-      return CTR_TOKEN_NIL;
+      return TokenTypeNil;
     }
   }
 
@@ -569,7 +569,7 @@ int ctr_lex_tok() {
     ctr_code += 2;
     // memcpy (ctr_lex_buffer, "?", 1);
     // ctr_lex_tokvlen = 1;
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
   }
 
   /* if lexer is in verbatim mode and we pass the '>' symbol insert a fake quote
@@ -578,10 +578,10 @@ int ctr_lex_tok() {
     // ctr_lex_verbatim_mode_insert_quote = (uintptr_t) (ctr_code + 1);      /*
     // this way because multiple invocations should return same result */
     // ctr_code++;
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
     // memcpy (ctr_lex_buffer, ">", 1);
     // ctr_lex_tokvlen = 1;
-    // return CTR_TOKEN_REF;
+    // return TokenTypeRef;
   }
   // if (*ctr_code == ':') {
   //   int i = 1;
@@ -596,7 +596,7 @@ int ctr_lex_tok() {
   //     ctr_code -= 2;
   //   // else
   //     // ctr_code;
-  //   return CTR_TOKEN_REF;
+  //   return TokenTypeRef;
   // }
   while (!isspace(c) &&
          (c != '#' && c != '(' && c != ')' && c != '[' && c != ']' &&
@@ -615,10 +615,10 @@ int ctr_lex_tok() {
     }
     ctr_code++;
     if (ctr_code == ctr_eofcode)
-      return CTR_TOKEN_REF;
+      return TokenTypeRef;
     c = *ctr_code;
   }
-  return CTR_TOKEN_REF;
+  return TokenTypeRef;
 }
 
 /**

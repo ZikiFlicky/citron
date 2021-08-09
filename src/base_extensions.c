@@ -1106,51 +1106,51 @@ ctr_object *ctr_ast_flex(ctr_object *myself, ctr_argument *argumentList) {
   return myself;
 }
 
-static char *ctr_lex_token_lookup(int tok) {
+static char *ctr_lex_token_lookup(enum TokenType tok) {
   switch (tok) {
-  case CTR_TOKEN_REF:
+  case TokenTypeRef:
     return "REF";
-  case CTR_TOKEN_QUOTE:
+  case TokenTypeQuote:
     return "QUOTE";
-  case CTR_TOKEN_NUMBER:
+  case TokenTypeNumber:
     return "NUMBER";
-  case CTR_TOKEN_PAROPEN:
+  case TokenTypeParopen:
     return "PAROPEN";
-  case CTR_TOKEN_PARCLOSE:
+  case TokenTypeParclose:
     return "PARCLOSE";
-  case CTR_TOKEN_BLOCKOPEN:
+  case TokenTypeBlockopen:
     return "BLOCKOPEN";
-  case CTR_TOKEN_BLOCKOPEN_MAP:
+  case TokenTypeBlockopenMap:
     return "BLOCKOPEN_MAP";
-  case CTR_TOKEN_BLOCKCLOSE:
+  case TokenTypeBlockclose:
     return "BLOCKCLOSE";
-  case CTR_TOKEN_COLON:
+  case TokenTypeColon:
     return "COLON";
-  case CTR_TOKEN_DOT:
+  case TokenTypeDot:
     return "DOT";
-  case CTR_TOKEN_CHAIN:
+  case TokenTypeChain:
     return "CHAIN";
-  case CTR_TOKEN_BOOLEANYES:
+  case TokenTypeBooleanyes:
     return "BOOLEANYES";
-  case CTR_TOKEN_BOOLEANNO:
+  case TokenTypeBooleanno:
     return "BOOLEANNO";
-  case CTR_TOKEN_NIL:
+  case TokenTypeNil:
     return "NIL";
-  case CTR_TOKEN_ASSIGNMENT:
+  case TokenTypeAssignment:
     return "ASSIGNMENT";
-  case CTR_TOKEN_RET:
+  case TokenTypeRet:
     return "RET";
-  case CTR_TOKEN_TUPOPEN:
+  case TokenTypeTupopen:
     return "TUPOPEN";
-  case CTR_TOKEN_TUPCLOSE:
+  case TokenTypeTupclose:
     return "TUPCLOSE";
-  case CTR_TOKEN_PASSIGNMENT:
+  case TokenTypePassignment:
     return "PASSIGNMENT";
-  case CTR_TOKEN_SYMBOL:
+  case TokenTypeSymbol:
     return "SYMBOL";
-  case CTR_TOKEN_LITERAL_ESC:
+  case TokenTypeLiteralEsc:
     return "LITERAL_ESC";
-  case CTR_TOKEN_FIN:
+  case TokenTypeFin:
     return "FIN";
   default:
     return "UNKNOWN";
@@ -1163,7 +1163,7 @@ static char *ctr_lex_token_lookup(int tok) {
  * reads a token off the internal token stream
  */
 ctr_object *ctr_ast_lextoken(ctr_object *myself, ctr_argument *argumentList) {
-  int tok = ctr_lex_tok();
+  enum TokenType tok = ctr_lex_tok();
   char *toktype = ctr_lex_token_lookup(tok);
   char *value = ctr_lex_tok_value();
   ssize_t len = ctr_lex_tok_value_length();

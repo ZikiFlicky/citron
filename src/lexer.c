@@ -84,7 +84,7 @@ static token_inj_t injects[MAX_LEXER_INJECT_VECTOR_COUNT]; // tokens to inject
  * returns 0 unless there's not enough room in the lexer injection
  * vector
  */
-int ctr_clex_inject_token(int token, const char *value, const int vlen,
+int ctr_clex_inject_token(enum TokenType token, const char *value, const int vlen,
                           const int real_vlen) {
   if (inject_index == MAX_LEXER_INJECT_VECTOR_COUNT)
     return 1;
@@ -369,7 +369,7 @@ unsigned long ctr_clex_position() {
  */
 void ctr_clex_emit_error(char *message) {
 #ifdef EXIT_ON_ERROR
-  printf("%s on line: %d. \n", message, ctr_clex_line_number);
+  fprintf(stderr, "%s on line: %d. \n", message, ctr_clex_line_number);
   exit(1);
 #else
   CtrStdFlow =
@@ -401,82 +401,82 @@ void ctr_clex_load(char *prg) {
  */
 char *ctr_clex_tok_value() { return ctr_clex_buffer; }
 
-char *ctr_clex_tok_describe(int token) {
+char *ctr_clex_tok_describe(enum TokenType token) {
   char *description;
   switch (token) {
-  case CTR_TOKEN_RET:
+  case TokenTypeRet:
     description = ctr_clex_desc_tok_ret;
     break;
-  case CTR_TOKEN_ASSIGNMENT:
+  case TokenTypeAssignment:
     description = ctr_clex_desc_tok_assignment;
     break;
-  case CTR_TOKEN_PASSIGNMENT:
+  case TokenTypePassignment:
     description = ctr_clex_desc_tok_passignment;
     break;
-  case CTR_TOKEN_BLOCKCLOSE:
+  case TokenTypeBlockclose:
     description = ctr_clex_desc_tok_blockclose;
     break;
-  case CTR_TOKEN_BLOCKOPEN:
+  case TokenTypeBlockopen:
     description = ctr_clex_desc_tok_blockopen;
     break;
-  case CTR_TOKEN_BLOCKOPEN_MAP:
+  case TokenTypeBlockopenMap:
     description = ctr_clex_desc_tok_blockopen_map;
     break;
-  case CTR_TOKEN_BOOLEANNO:
+  case TokenTypeBooleanno:
     description = ctr_clex_desc_tok_booleanno;
     break;
-  case CTR_TOKEN_BOOLEANYES:
+  case TokenTypeBooleanyes:
     description = ctr_clex_desc_tok_booleanyes;
     break;
-  case CTR_TOKEN_CHAIN:
+  case TokenTypeChain:
     description = ctr_clex_desc_tok_chain;
     break;
-  case CTR_TOKEN_COLON:
+  case TokenTypeColon:
     description = ctr_clex_desc_tok_colon;
     break;
-  case CTR_TOKEN_DOT:
+  case TokenTypeDot:
     description = ctr_clex_desc_tok_dot;
     break;
-  case CTR_TOKEN_FIN:
+  case TokenTypeFin:
     description = ctr_clex_desc_tok_fin;
     break;
-  case CTR_TOKEN_NIL:
+  case TokenTypeNil:
     description = ctr_clex_desc_tok_nil;
     break;
-  case CTR_TOKEN_NUMBER:
+  case TokenTypeNumber:
     description = ctr_clex_desc_tok_number;
     break;
-  case CTR_TOKEN_PARCLOSE:
+  case TokenTypeParclose:
     description = ctr_clex_desc_tok_parclose;
     break;
-  case CTR_TOKEN_PAROPEN:
+  case TokenTypeParopen:
     description = ctr_clex_desc_tok_paropen;
     break;
-  case CTR_TOKEN_QUOTE:
+  case TokenTypeQuote:
     description = ctr_clex_desc_tok_quote;
     break;
-  case CTR_TOKEN_REF:
+  case TokenTypeRef:
     description = ctr_clex_desc_tok_ref;
     break;
-  case CTR_TOKEN_TUPOPEN:
+  case TokenTypeTupopen:
     description = ctr_clex_desc_tok_tupopen;
     break;
-  case CTR_TOKEN_TUPCLOSE:
+  case TokenTypeTupclose:
     description = ctr_clex_desc_tok_tupclose;
     break;
-  case CTR_TOKEN_SYMBOL:
+  case TokenTypeSymbol:
     description = ctr_clex_desc_tok_symbol;
     break;
-  case CTR_TOKEN_LITERAL_ESC:
+  case TokenTypeLiteralEsc:
     description = ctr_clex_desc_tok_lit_esc;
     break;
-  case CTR_TOKEN_INV:
+  case TokenTypeInv:
     description = ctr_clex_desc_tok_inv;
     break;
-  case CTR_TOKEN_FANCY_QUOT_OPEN:
+  case TokenTypeFancyQuotOpen:
     description = ctr_clex_desc_tok_fancy_quot_open;
     break;
-  case CTR_TOKEN_FANCY_QUOT_CLOS:
+  case TokenTypeFancyQuotClos:
     description = ctr_clex_desc_tok_fancy_quot_clos;
     break;
   default:
@@ -604,7 +604,7 @@ void ctr_match_toggle_pragma() {
   }
   if (strncmp(ctr_code, ":callShorthand", 14) == 0) {
     ctr_code += 14;
-    int t0 = ctr_clex_tok(), t1 = ctr_clex_tok();
+    enum TokenType t0 = ctr_clex_tok(), t1 = ctr_clex_tok();
     ctr_set_pragma(callShorthand, t0, t1);
     // while(isspace(*ctr_clex_oldptr)) ctr_clex_oldptr++; //no chance of it
     // falling off ctr_clex_oldptr++; while(*(ctr_code--) != '\n'); //go back
@@ -617,7 +617,7 @@ void ctr_match_toggle_pragma() {
   if (strncmp(ctr_code, ":declare", 8) == 0) {
     ctr_code += 8;
     int t0 = ctr_clex_tok();
-    if (t0 != CTR_TOKEN_REF) {
+    if (t0 != TokenTypeRef) {
     err:;
       ctr_clex_emit_error("Expected either infixr or infixl or lazyev");
       return;
@@ -638,12 +638,12 @@ void ctr_match_toggle_pragma() {
     else
       goto err;
     t0 = ctr_clex_tok();
-    if (t0 == CTR_TOKEN_NUMBER) {
+    if (t0 == TokenTypeNumber) {
       prec = atoi(ctr_clex_tok_value());
       t0 = ctr_clex_tok();
     }
-    if (t0 != CTR_TOKEN_REF) {
-      if (t0 == CTR_TOKEN_COLON && lazy) {
+    if (t0 != TokenTypeRef) {
+      if (t0 == TokenTypeColon && lazy) {
         // next call is lazy
         nextCallLazy->value = prec;
         goto ending;
@@ -664,18 +664,18 @@ void ctr_match_toggle_pragma() {
     int lineno = ctr_clex_line_number;
     ctr_code += 9;
     int t0 = ctr_clex_tok();
-    if (t0 != CTR_TOKEN_REF || lineno != ctr_clex_line_number) {
+    if (t0 != TokenTypeRef || lineno != ctr_clex_line_number) {
     err_v:;
       ctr_clex_emit_error("Expected an extension name");
       return;
     }
     handle_extension();
     // printf("+ %.*s\n", ctr_clex_tokvlen, ctr_clex_buffer);
-    while (ctr_clex_tok() == CTR_TOKEN_CHAIN) {
+    while (ctr_clex_tok() == TokenTypeChain) {
       if (lineno != ctr_clex_line_number)
         break;
       t0 = ctr_clex_tok();
-      if (t0 != CTR_TOKEN_REF)
+      if (t0 != TokenTypeRef)
         goto err_v;
       // printf("+ %.*s\n", ctr_clex_tokvlen, ctr_clex_buffer);
       handle_extension();
@@ -706,7 +706,7 @@ int ctr_clex_is_valid_digit_in_base(char c, int b) {
  * Reads the next token from the program buffer and selects this
  * token.
  */
-int ctr_clex_tok() {
+enum TokenType ctr_clex_tok() {
   int tinj;
   if ((tinj = do_inject_token()) != -1) {
     // printf("Injected %d\n", tinj);
@@ -715,7 +715,7 @@ int ctr_clex_tok() {
     return tinj;
   }
   if (ctr_code == ctr_eofcode) {
-    return CTR_TOKEN_FIN;
+    return TokenTypeFin;
   }
   char c;
   int i, comment_mode, presetToken, pragma_mode;
@@ -733,22 +733,22 @@ int ctr_clex_tok() {
   switch (ctr_string_interpolation) {
   // $$ref
   case 1:
-    presetToken = CTR_TOKEN_QUOTE;
+    presetToken = TokenTypeQuote;
     break;
   case 2:
   case 4:
     memcpy(ctr_clex_buffer, "+", 1);
     ctr_clex_tokvlen = 1;
-    presetToken = CTR_TOKEN_REF;
+    presetToken = TokenTypeRef;
     break;
   case 3:
     memcpy(ctr_clex_buffer, ivarname, ivarlen);
     ctr_clex_tokvlen = ivarlen;
-    presetToken = CTR_TOKEN_REF;
+    presetToken = TokenTypeRef;
     break;
   case 5:
     ctr_code = ctr_code_eoi;
-    presetToken = CTR_TOKEN_QUOTE;
+    presetToken = TokenTypeQuote;
     break;
   }
   /* return the preset token, and transition to next state */
@@ -761,17 +761,17 @@ int ctr_clex_tok() {
    * a 'fake quote' (?>') */
   if (ctr_clex_verbatim_mode == 1 &&
       ctr_clex_verbatim_mode_insert_quote == (uintptr_t)ctr_code) {
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
   }
 
   if (ctr_code != ctr_eofcode && *ctr_code == '\n' && check_next_line_empty() &&
       oneLineExpressions->value) {
     ctr_code++;
-    return CTR_TOKEN_DOT;
+    return TokenTypeDot;
   }
 
   c = *ctr_code;
-  while (ctr_code != ctr_eofcode && (isspace(c) || c == '#' || comment_mode)) {
+  while (*ctr_code != '\0' && (isspace(c) || c == '#' || comment_mode)) {
     if (c == '\n') {
       comment_mode = 0;
       pragma_mode = 0;
@@ -788,27 +788,27 @@ int ctr_clex_tok() {
     c = *ctr_code;
   }
   if (ctr_code == ctr_eofcode) {
-    return CTR_TOKEN_FIN;
+    return TokenTypeFin;
   }
   if (c == '\\') {
     ctr_code++;
     int t = ctr_clex_tok();
     ctr_clex_putback();
-    if (t != CTR_TOKEN_REF) {
-      if (t == CTR_TOKEN_COLON) { // transform \:x expr to {\:x expr}
+    if (t != TokenTypeRef) {
+      if (t == TokenTypeColon) { // transform \:x expr to {\:x expr}
         ctr_transform_lambda_shorthand = 1;
-        return CTR_TOKEN_BLOCKOPEN_MAP; // HACK This thing here simply
+        return TokenTypeBlockopenMap; // HACK This thing here simply
                                         // transforms the syntax, however we
                                         // fool the in-language lexer to think
                                         // that this is actually a ref
       } else { // if not a (\:x expr) then it's simply a message
         ctr_clex_buffer[0] = '\\';
         ctr_clex_tokvlen = 1;
-        return CTR_TOKEN_REF;
+        return TokenTypeRef;
       }
       // ctr_clex_emit_error("Expected a reference");
     }
-    return CTR_TOKEN_SYMBOL;
+    return TokenTypeSymbol;
   }
   if (c == '$' && ctr_code + 1 < ctr_eofcode) {
     char _t = *(++ctr_code);
@@ -820,10 +820,10 @@ int ctr_clex_tok() {
     switch (_t) {
     case '(':
       ctr_clex_tokvlen = -1; // literal escape mode
-      return CTR_TOKEN_LITERAL_ESC;
+      return TokenTypeLiteralEsc;
     case '[':
       ctr_clex_tokvlen = -2; // tuple escape mode
-      return CTR_TOKEN_LITERAL_ESC;
+      return TokenTypeLiteralEsc;
     case '`': // literal replace mode
       q = 2;
     case '\'': // quote
@@ -832,7 +832,7 @@ int ctr_clex_tok() {
     case '!': // literal unescape
       if (ctr_code + 1 < ctr_eofcode && !isspace(*(++ctr_code))) {
         ctr_clex_tokvlen = -3 - q; // unescape mode (q=1 quote)
-        return CTR_TOKEN_LITERAL_ESC;
+        return TokenTypeLiteralEsc;
       }
       ctr_code--;
     }
@@ -841,50 +841,50 @@ int ctr_clex_tok() {
   }
   if (c == '(') {
     ctr_code++;
-    return CTR_TOKEN_PAROPEN;
+    return TokenTypeParopen;
   }
   if (c == ')') {
     ctr_code++;
-    return CTR_TOKEN_PARCLOSE;
+    return TokenTypeParclose;
   }
   if (c == '[') {
     ctr_code++;
-    return CTR_TOKEN_TUPOPEN;
+    return TokenTypeTupopen;
   }
   if (c == ']') {
     ctr_code++;
-    return CTR_TOKEN_TUPCLOSE;
+    return TokenTypeTupclose;
   }
   if (c == '{') {
     ctr_code++;
     if (ctr_code != ctr_eofcode && (c = *ctr_code) == '\\') {
       ctr_code++;
-      return CTR_TOKEN_BLOCKOPEN_MAP;
+      return TokenTypeBlockopenMap;
     } else
-      return CTR_TOKEN_BLOCKOPEN;
+      return TokenTypeBlockopen;
   }
   if (c == '}') {
     ctr_code++;
-    return CTR_TOKEN_BLOCKCLOSE;
+    return TokenTypeBlockclose;
   }
   if (c == '.') {
     ctr_code++;
-    return CTR_TOKEN_DOT;
+    return TokenTypeDot;
   }
   if (c == ',') {
     ctr_code++;
-    return CTR_TOKEN_CHAIN;
+    return TokenTypeChain;
   }
   if (((c == 'i') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == 's') &&
        isspace(*(ctr_code + 2))) ||
       ((c == ':') && (ctr_code + 1) < ctr_eofcode &&
        (*(ctr_code + 1) == '='))) {
     ctr_code += 2;
-    return CTR_TOKEN_ASSIGNMENT;
+    return TokenTypeAssignment;
   }
   if ((c == '=') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == '>')) {
     ctr_code += 2;
-    return CTR_TOKEN_PASSIGNMENT;
+    return TokenTypePassignment;
   }
   if (c == ':' /*&& ctr_code+1!=ctr_eofcode && *(ctr_code+1) != ':' */) {
     int is_name = 0;
@@ -898,33 +898,33 @@ int ctr_clex_tok() {
     if (is_name) {
       if (ctr_clex_tokvlen > 1)
         ctr_code--;
-      return CTR_TOKEN_REF;
+      return TokenTypeRef;
     }
-    return CTR_TOKEN_COLON;
+    return TokenTypeColon;
   }
   if (c == '^') {
     ctr_code++;
-    return CTR_TOKEN_RET;
+    return TokenTypeRet;
   }
   //↑
   if ((ctr_code + 2) < ctr_eofcode && (uint8_t)c == 226 &&
       ((uint8_t) * (ctr_code + 1) == 134) &&
       ((uint8_t) * (ctr_code + 2) == 145)) {
     ctr_code += 3;
-    return CTR_TOKEN_RET;
+    return TokenTypeRet;
   }
   if (c == -30) {
     // ‹›
     if (((ctr_code + 1) < ctr_eofcode) && *(ctr_code + 1) == -128) {
       if (((ctr_code + 2) < ctr_eofcode) && *(ctr_code + 2) == -71)
-        return CTR_TOKEN_FANCY_QUOT_OPEN;
+        return TokenTypeFancyQuotOpen;
       if (((ctr_code + 2) < ctr_eofcode) && *(ctr_code + 2) == -72)
-        return CTR_TOKEN_FANCY_QUOT_CLOS;
+        return TokenTypeFancyQuotClos;
     }
   }
   if (c == '\'') {
     ctr_code++;
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
   }
   if ((c == '-' && (ctr_code + 1) < ctr_eofcode && isdigit(*(ctr_code + 1))) ||
       isdigit(c)) {
@@ -960,7 +960,7 @@ int ctr_clex_tok() {
     }
     if (c == '.' && (ctr_code + 1 <= ctr_eofcode) &&
         !ctr_clex_is_valid_digit_in_base(toupper(*(ctr_code + 1)), base)) {
-      return CTR_TOKEN_NUMBER;
+      return TokenTypeNumber;
     }
     if (c == '.') {
       ctr_clex_buffer[i] = c;
@@ -976,38 +976,38 @@ int ctr_clex_tok() {
       ctr_code++;
       c = toupper(*ctr_code);
     }
-    return CTR_TOKEN_NUMBER;
+    return TokenTypeNumber;
   }
   if (c == '`') {
     ctr_code++;
     struct lexer_state st;
     ctr_clex_dump_state(&st);
     int t = ctr_clex_tok(), rv = 0;
-    if (t == CTR_TOKEN_REF) {
+    if (t == TokenTypeRef) {
       if (ctr_clex_buffer[ctr_clex_tokvlen - 1] == '`')
         rv = 1;
     }
     ctr_clex_load_state(st);
     if (rv)
-      return CTR_TOKEN_INV;
+      return TokenTypeInv;
     ctr_code--;
   }
   if (strncmp(ctr_code, "True", 4) == 0) {
     if (ctr_clex_is_delimiter(*(ctr_code + 4))) {
       ctr_code += 4;
-      return CTR_TOKEN_BOOLEANYES;
+      return TokenTypeBooleanyes;
     }
   }
   if (strncmp(ctr_code, "False", 5) == 0) {
     if (ctr_clex_is_delimiter(*(ctr_code + 5))) {
       ctr_code += 5;
-      return CTR_TOKEN_BOOLEANNO;
+      return TokenTypeBooleanno;
     }
   }
   if (strncmp(ctr_code, "Nil", 3) == 0) {
     if (ctr_clex_is_delimiter(*(ctr_code + 3))) {
       ctr_code += 3;
-      return CTR_TOKEN_NIL;
+      return TokenTypeNil;
     }
   }
 
@@ -1017,7 +1017,7 @@ int ctr_clex_tok() {
     ctr_code += 2;
     // memcpy (ctr_clex_buffer, "?", 1);
     // ctr_clex_tokvlen = 1;
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
   }
 
   /* if lexer is in verbatim mode and we pass the '>' symbol insert a fake quote
@@ -1026,10 +1026,10 @@ int ctr_clex_tok() {
     // ctr_clex_verbatim_mode_insert_quote = (uintptr_t) (ctr_code + 1);      /*
     // this way because multiple invocations should return same result */
     // ctr_code++;
-    return CTR_TOKEN_QUOTE;
+    return TokenTypeQuote;
     // memcpy (ctr_clex_buffer, ">", 1);
     // ctr_clex_tokvlen = 1;
-    // return CTR_TOKEN_REF;
+    // return TokenTypeRef;
   }
   // if (*ctr_code == ':') {
   //   int i = 1;
@@ -1044,7 +1044,7 @@ int ctr_clex_tok() {
   //     ctr_code -= 2;
   //   // else
   //     // ctr_code;
-  //   return CTR_TOKEN_REF;
+  //   return TokenTypeRef;
   // }
   while (!isspace(c) &&
          (c != '#' && c != '(' && c != ')' && c != '[' && c != ']' &&
@@ -1063,10 +1063,10 @@ int ctr_clex_tok() {
     }
     ctr_code++;
     if (ctr_code == ctr_eofcode)
-      return CTR_TOKEN_REF;
+      return TokenTypeRef;
     c = *ctr_code;
   }
-  return CTR_TOKEN_REF;
+  return TokenTypeRef;
 }
 
 static int ctr_clex_next_number() {

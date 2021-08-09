@@ -402,87 +402,34 @@ void ctr_clex_load(char *prg) {
 char *ctr_clex_tok_value() { return ctr_clex_buffer; }
 
 char *ctr_clex_tok_describe(enum TokenType token) {
-  char *description;
   switch (token) {
-  case TokenTypeRet:
-    description = ctr_clex_desc_tok_ret;
-    break;
-  case TokenTypeAssignment:
-    description = ctr_clex_desc_tok_assignment;
-    break;
-  case TokenTypePassignment:
-    description = ctr_clex_desc_tok_passignment;
-    break;
-  case TokenTypeBlockclose:
-    description = ctr_clex_desc_tok_blockclose;
-    break;
-  case TokenTypeBlockopen:
-    description = ctr_clex_desc_tok_blockopen;
-    break;
-  case TokenTypeBlockopenMap:
-    description = ctr_clex_desc_tok_blockopen_map;
-    break;
-  case TokenTypeBooleanno:
-    description = ctr_clex_desc_tok_booleanno;
-    break;
-  case TokenTypeBooleanyes:
-    description = ctr_clex_desc_tok_booleanyes;
-    break;
-  case TokenTypeChain:
-    description = ctr_clex_desc_tok_chain;
-    break;
-  case TokenTypeColon:
-    description = ctr_clex_desc_tok_colon;
-    break;
-  case TokenTypeDot:
-    description = ctr_clex_desc_tok_dot;
-    break;
-  case TokenTypeFin:
-    description = ctr_clex_desc_tok_fin;
-    break;
-  case TokenTypeNil:
-    description = ctr_clex_desc_tok_nil;
-    break;
-  case TokenTypeNumber:
-    description = ctr_clex_desc_tok_number;
-    break;
-  case TokenTypeParclose:
-    description = ctr_clex_desc_tok_parclose;
-    break;
-  case TokenTypeParopen:
-    description = ctr_clex_desc_tok_paropen;
-    break;
-  case TokenTypeQuote:
-    description = ctr_clex_desc_tok_quote;
-    break;
-  case TokenTypeRef:
-    description = ctr_clex_desc_tok_ref;
-    break;
-  case TokenTypeTupopen:
-    description = ctr_clex_desc_tok_tupopen;
-    break;
-  case TokenTypeTupclose:
-    description = ctr_clex_desc_tok_tupclose;
-    break;
-  case TokenTypeSymbol:
-    description = ctr_clex_desc_tok_symbol;
-    break;
-  case TokenTypeLiteralEsc:
-    description = ctr_clex_desc_tok_lit_esc;
-    break;
-  case TokenTypeInv:
-    description = ctr_clex_desc_tok_inv;
-    break;
-  case TokenTypeFancyQuotOpen:
-    description = ctr_clex_desc_tok_fancy_quot_open;
-    break;
-  case TokenTypeFancyQuotClos:
-    description = ctr_clex_desc_tok_fancy_quot_clos;
-    break;
-  default:
-    description = ctr_clex_desc_tok_unknown;
+  case TokenTypeRet:           return ctr_clex_desc_tok_ret;
+  case TokenTypeAssignment:    return ctr_clex_desc_tok_assignment;
+  case TokenTypePassignment:   return ctr_clex_desc_tok_passignment;
+  case TokenTypeBlockclose:    return ctr_clex_desc_tok_blockclose;
+  case TokenTypeBlockopen:     return ctr_clex_desc_tok_blockopen;
+  case TokenTypeBlockopenMap:  return ctr_clex_desc_tok_blockopen_map;
+  case TokenTypeBooleanno:     return ctr_clex_desc_tok_booleanno;
+  case TokenTypeBooleanyes:    return ctr_clex_desc_tok_booleanyes;
+  case TokenTypeChain:         return ctr_clex_desc_tok_chain;
+  case TokenTypeColon:         return ctr_clex_desc_tok_colon;
+  case TokenTypeDot:           return ctr_clex_desc_tok_dot;
+  case TokenTypeFin:           return ctr_clex_desc_tok_fin;
+  case TokenTypeNil:           return ctr_clex_desc_tok_nil;
+  case TokenTypeNumber:        return ctr_clex_desc_tok_number;
+  case TokenTypeParclose:      return ctr_clex_desc_tok_parclose;
+  case TokenTypeParopen:       return ctr_clex_desc_tok_paropen;
+  case TokenTypeQuote:         return ctr_clex_desc_tok_quote;
+  case TokenTypeRef:           return ctr_clex_desc_tok_ref;
+  case TokenTypeTupopen:       return ctr_clex_desc_tok_tupopen;
+  case TokenTypeTupclose:      return ctr_clex_desc_tok_tupclose;
+  case TokenTypeSymbol:        return ctr_clex_desc_tok_symbol;
+  case TokenTypeLiteralEsc:    return ctr_clex_desc_tok_lit_esc;
+  case TokenTypeInv:           return ctr_clex_desc_tok_inv;
+  case TokenTypeFancyQuotOpen: return ctr_clex_desc_tok_fancy_quot_open;
+  case TokenTypeFancyQuotClos: return ctr_clex_desc_tok_fancy_quot_clos;
+  default:                     return ctr_clex_desc_tok_unknown;
   }
-  return description;
 }
 
 /**

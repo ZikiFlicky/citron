@@ -137,30 +137,21 @@ char *ctr_clex_scan(char c) {
  * @return position of the encountered token or NULL if it doesn't exist
  */
 char *ctr_clex_scan_balanced(char c, char d) {
-  if (*ctr_code == c)
-    return ctr_code;
-  int bc = *ctr_code == d;
-  char *older = ctr_clex_olderptr;
-  ctr_clex_olderptr = ctr_clex_oldptr;
-  ctr_clex_oldptr = ctr_code;
+  char *start = ctr_code;
+  int bc = *ctr_code == d ? 1 : 0;
 resume:
-  while (ctr_code <= ctr_eofcode && *++ctr_code != c) {
-    if (*ctr_code == '\n')
-      ctr_clex_line_number++;
-    if (*ctr_code == d)
-      bc++;
+  while (*(ctr_code++) != c) {
+    if (*ctr_code == '\0') {
+      ctr_code = start;
+      return NULL;
+    } else if (*ctr_code == '\n') {
+      ++ctr_clex_line_number;
+    } else if (*ctr_code == d) {
+      ++bc;
+    }
   }
-  if (*ctr_code == c && bc > 0) {
-    bc--;
-    if (bc)
-      goto resume;
-  }
-  if (ctr_code == ctr_eofcode || *ctr_code != c) {
-    ctr_code = ctr_clex_oldptr;
-    ctr_clex_oldptr = ctr_clex_olderptr;
-    ctr_clex_olderptr = older;
-    return NULL;
-  }
+  if (bc > 0 && --bc)
+    goto resume;
   return ctr_code;
 }
 

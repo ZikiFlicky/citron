@@ -177,43 +177,49 @@ static struct ctr_extension_descriptor {
 #endif
                            {0, NULL}};
 
-unsigned int ctr_internal_edit_distance(const char *a, const char *b,
-                                        unsigned int length,
-                                        unsigned int bLength) {
-  unsigned int *cache = ctr_heap_allocate(length * sizeof(unsigned int));
-  unsigned int index = 0;
-  unsigned int bIndex = 0;
-  unsigned int distance;
-  unsigned int bDistance;
-  unsigned int result;
+size_t ctr_internal_edit_distance(const char *str1, const char *str2,
+                                        size_t length1,
+                                        size_t length2) {
+  size_t *cache = ctr_heap_allocate(length1 * sizeof(unsigned int));
+  size_t idx1;
+  size_t idx2;
+  size_t distance1;
+  size_t distance2;
+  size_t result;
   char code;
 
   /* Shortcut optimizations / degenerate cases. */
-  if (a == b)
+  if (str1 == str2)
     return 0;
-  if (length == 0)
-    return bLength;
-  if (bLength == 0)
-    return length;
+  if (length1 == 0)
+    return length2;
+  if (length2 == 0)
+    return length1;
 
-  while (index < length) {
-    cache[index] = index + 1;
-    index++;
-  }
+  for (idx1 = 0; idx1 < length1; ++idx1)
+    cache[idx1] = idx1 + 1;
 
-  while (bIndex < bLength) {
-    code = b[bIndex];
-    result = distance = bIndex++;
-    index = -1;
+  for (idx2 = 0; idx2 < length2; ++idx2) {
+    code = str2[idx2];
+    result = distance1 = idx2;
 
-    while (++index < length) {
-      bDistance = code == a[index] ? distance : distance + 1;
-      distance = cache[index];
+    for (idx1 = 0; idx1 < length1; ++idx1) {
+      distance2 = code == str1[idx1] ? distance1 : distance1 + 1;
+      distance1 = cache[idx1];
 
-      cache[index] = result = distance > result
-                                  ? bDistance > result ? result + 1 : bDistance
-                              : bDistance > distance ? distance + 1
-                                                     : bDistance;
+      cache[idx1] = result = distance1 > result
+                              ?
+                                distance2 > result
+                                ?
+                                  result + 1
+                                :
+                                  distance2
+                              :
+                                distance2 > distance1
+                                ?
+                                  distance1 + 1
+                                :
+                                  distance2;
     }
   }
 

@@ -158,28 +158,13 @@ resume:
 }
 
 char *ctr_clex_read_balanced(char c, char d, int *line) {
-  char *cc = ctr_code;
-  {
-    char *ctr_code = cc;
-    if (*ctr_code == c)
-      return ctr_code;
-    int bc = *ctr_code == d;
-  resume:
-    while (ctr_code <= ctr_eofcode && *++ctr_code != c) {
-      if (*ctr_code == '\n')
-        line++;
-      if (*ctr_code == d)
-        bc++;
-    }
-    if (*ctr_code == c && bc > 0) {
-      bc--;
-      if (bc)
-        goto resume;
-    }
-    if (ctr_code == ctr_eofcode || *ctr_code != c)
-      return NULL;
-    return ctr_code;
-  }
+  char *backup = ctr_code;
+  int line_start = ctr_clex_line_number;
+  char *res = ctr_clex_scan_balanced(c, d);
+  ctr_code = backup;
+  *line += ctr_clex_line_number - line_start;
+  ctr_clex_line_number = line_start;
+  return res;
 }
 
 static struct ctr_extension_descriptor {

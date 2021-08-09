@@ -126,6 +126,7 @@ char *ctr_clex_scan(char c) {
     } else if (*ctr_code == '\n') {
       ++ctr_clex_line_number;
     }
+    ++ctr_code;
   }
   return ctr_code;
 }

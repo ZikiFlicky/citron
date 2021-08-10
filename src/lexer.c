@@ -454,24 +454,25 @@ void ctr_clex_putback() {
   ctr_clex_line_number = ctr_clex_old_line_number;
 }
 
-int check_next_line_empty() {
+ctr_bool check_next_line_empty() {
   if (!regexLineCheck)
-    return *(ctr_code + 1) != '\n';
+    return ctr_code[1] != '\n';
+
   switch (regexLineCheck->value) {
-  case 0: {
-    return *(ctr_code + 1) != '\n';
-  }
+  case 0:
+    return ctr_code[1] != '\n';
   case 1: {
     regex_t pattern;
-    if (regcomp(&pattern, "^$", 0))
-      ctr_clex_emit_error(
-          "PCRE could not compile regex, please turn regexLineCheck off.");
-    int x = regexec(&pattern, ctr_code + 1, 0, NULL, 0) == REG_NOMATCH;
+    ctr_bool res;
+    if (regcomp(&pattern, "^$", 0) != 0)
+      ctr_clex_emit_error("PCRE could not compile regex, please turn regexLineCheck off.");
+
+    res = regexec(&pattern, ctr_code + 1, 0, NULL, 0) == REG_NOMATCH;
     regfree(&pattern);
-    return x;
+    return res;
   }
   }
-  return 0;
+  return false;
 }
 
 /**

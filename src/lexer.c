@@ -21,7 +21,7 @@ char *ctr_code_eoi;
 char *ctr_eofcode;
 char *ctr_clex_oldptr;
 char *ctr_clex_olderptr;
-int ctr_clex_verbatim_mode = 0; /* flag: indicates whether lexer operates in
+ctr_bool ctr_clex_verbatim_mode = 0; /* flag: indicates whether lexer operates in
                                    verbatim mode or not (1 = ON, 0 = OFF) */
 uintptr_t ctr_clex_verbatim_mode_insert_quote =
     0; /* pointer to 'overlay' the 'fake quote' for verbatim mode */
@@ -1120,7 +1120,7 @@ char *ctr_clex_readstr() {
   char *strbuff;
   char c;
   long memblock = 1;
-  int escape;
+  ctr_bool escape = false;
   char *beginbuff;
   long page = 100; /* 100 byte pages */
   size_t tracking_id;
@@ -1134,16 +1134,11 @@ char *ctr_clex_readstr() {
   strbuff = (char *)ctr_heap_allocate_tracked(memblock);
   tracking_id = ctr_heap_get_latest_tracking_id();
   c = *ctr_code;
-  escape = 0;
   beginbuff = strbuff;
-  while (/* reading string in non-verbatim mode, read until the first
-            non-escaped quote */
-         (ctr_clex_verbatim_mode == 0 && (c != '\'' || escape == 1)) ||
+  while (/* reading string in non-verbatim mode, read until the first non-escaped quote */
+         (!ctr_clex_verbatim_mode && (c != '\'' || escape == 1)) ||
          /* reading string in verbatim mode, read until the '<?' sequence */
-         (ctr_clex_verbatim_mode == 1 &&
-          (c != '<' || ((ctr_code + 1) >= ctr_eofcode) ||
-           *(ctr_code + 1) != '?') &&
-          ctr_code < ctr_eofcode)) {
+         (ctr_clex_verbatim_mode && (c != '<' || ((ctr_code + 1) >= ctr_eofcode) || *(ctr_code + 1) != '?') && ctr_code < ctr_eofcode)) {
 
     /* enter interpolation mode ( $$x ) */
     if (!ctr_clex_verbatim_mode && !escape && c == '$') {
@@ -1227,6 +1222,21 @@ char *ctr_clex_readstr() {
           err[55] = *(ctr_code + 1);
           ctr_clex_emit_error(err);
         }
+        break;
+      }
+      case '0': case '1': case '2': case '3':
+      case '4': case '5': case '6': case '7': {
+        // C style \xxx escape sequences
+        uint16_t v = 0;
+        size_t i;
+        c = 0;
+        for (i = 0; i < 3 && ctr_clex_is_valid_digit_in_base(ctr_code[i], 8); ++i) {
+          v = v * 8 + (ctr_code[i] - '0');
+          if (v > 127) break;
+          c = c * 8 + (ctr_code[i] - '0');
+          ctr_code;
+        }
+        ctr_code += i - 1;
         break;
       }
       case 'u': {

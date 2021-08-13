@@ -76,6 +76,21 @@ typedef struct {
 static token_inj_t injects[MAX_LEXER_INJECT_VECTOR_COUNT]; // tokens to inject
 
 /**
+ * A helper that checks if a string starts with
+ * another string.
+ * returns 0 if it didn't match, and the length of the value
+ * to match against if it did.
+ * Should be a replacement for strncmp
+ */
+static size_t ctr_str_startswith(char *string, char *with) {
+  size_t i;
+  for (i = 0; with[i] != '\0'; ++i)
+    if (string[i] != with[i])
+      return 0;
+  return i;
+}
+
+/**
  * Lexer - Inject token
  *
  * Injects a token to be returned before the next actual one
@@ -498,22 +513,21 @@ extern ctr_tnode *ctr_cparse_block_(int);
  */
 __attribute__((always_inline)) static void handle_extension() {
   char *ext = ctr_clex_buffer;
-  int len = ctr_clex_tokvlen;
+  size_t len;
 #ifdef DEBUG_BUILD
   fprintf(stderr, "+ext %.*s\n", len, ext);
 #endif
-  if (len == 7 && strncmp(ext, "XFrozen", 7) == 0) {
+  if (len = ctr_str_startswith(ext, "XFrozen")) {
     extensionsPra->value |= CTR_EXT_FROZEN_K;
-  } else if (len == 11 && strncmp(ext, "XPureLambda", 11) == 0) {
+  } else if (len = ctr_str_startswith(ext, "XPureLambda")) {
     extensionsPra->value |= CTR_EXT_PURE_FS;
-  } else if (len == 14 && strncmp(ext, "XNakedAsmBlock", 14) == 0) {
-#if withInlineAsm
+  }
+  #if withInlineAsm
+  else if (len = ctr_str_startswith(ext, "XNakedAsmBlock")) {
     extensionsPra->value |= CTR_EXT_ASM_BLOCK;
-#else
-    goto elsecase;
-#endif
-  } else {
-  elsecase:;
+  }
+  #endif
+  else {
     static char errbuf[1024];
     sprintf(errbuf, "Unknown extension '%.*s' did you mean '%s'?", len, ext,
             ctr_clex_find_closest_extension(len, ext));
@@ -522,28 +536,25 @@ __attribute__((always_inline)) static void handle_extension() {
 }
 
 void ctr_match_toggle_pragma() {
-  if (strncmp(ctr_code, ":oneLineExpressions", 19) == 0) {
+  size_t l;
+  if (l = ctr_str_startswith(ctr_code, ":oneLineExpressions")) {
     ctr_activate_pragma(oneLineExpressions);
-    ctr_code += 18;
+    ctr_code += l;
     return;
-  }
-  if (strncmp(ctr_code, ":regexLineCheck", 15) == 0) {
+  } else if (l = ctr_str_startswith(ctr_code, ":regexLineCheck")) {
     ctr_activate_pragma(regexLineCheck);
-    ctr_code += 14;
+    ctr_code += l;
     return;
-  }
-  if (strncmp(ctr_code, ":flexibleConstructs", 19) == 0) {
+  } else if (l = ctr_str_startswith(ctr_code, ":flexibleConstructs")) {
     ctr_activate_pragma(flexibleConstructs);
-    ctr_code += 18;
+    ctr_code += l;
     return;
-  }
-  if (strncmp(ctr_code, ":autofillHoles", 14) == 0) {
+  } else if (l = ctr_str_startswith(ctr_code, ":autofillHoles")) {
     ctr_activate_pragma(autofillHoles);
-    ctr_code += 14;
+    ctr_code += l;
     return;
-  }
-  if (strncmp(ctr_code, ":callShorthand", 14) == 0) {
-    ctr_code += 14;
+  } else if (l = ctr_str_startswith(ctr_code, ":callShorthand")) {
+    ctr_code += l;
     enum TokenType t0 = ctr_clex_tok(), t1 = ctr_clex_tok();
     ctr_set_pragma(callShorthand, t0, t1);
     // while(isspace(*ctr_clex_oldptr)) ctr_clex_oldptr++; //no chance of it
@@ -552,16 +563,11 @@ void ctr_match_toggle_pragma() {
     ctr_clex_olderptr = ctr_code;
     ctr_clex_oldptr = ctr_code;
     ctr_code--;
-    return;
-  }
-  if (strncmp(ctr_code, ":declare", 8) == 0) {
-    ctr_code += 8;
+  } else if (l = ctr_str_startswith(ctr_code, ":declare")) {
+    ctr_code += l;
     int t0 = ctr_clex_tok();
-    if (t0 != TokenTypeRef) {
-    err:;
-      ctr_clex_emit_error("Expected either infixr or infixl or lazyev");
-      return;
-    }
+    if (t0 != TokenTypeRef)
+      goto err;
     char *v = ctr_clex_tok_value();
     int len = ctr_clex_tok_value_length();
     int fixity = 0;
@@ -569,11 +575,11 @@ void ctr_match_toggle_pragma() {
     int lazy = 0;
     if (len != strlen("infixr"))
       goto err;
-    if (strncmp(v, "infixr", len) == 0)
+    if (ctr_str_startswith(v, "infixr"))
       fixity = 0;
-    else if (strncmp(v, "infixl", len) == 0)
+    else if (ctr_str_startswith(v, "infixl"))
       fixity = 1;
-    else if (strncmp(v, "lazyev", len) == 0)
+    else if (ctr_str_startswith(v, "lazyev"))
       prec = lazy = 1;
     else
       goto err;
@@ -598,11 +604,13 @@ void ctr_match_toggle_pragma() {
     ctr_clex_olderptr = ctr_code;
     ctr_clex_oldptr = ctr_code;
     return;
-  }
-  if (strncmp(ctr_code, ":language", 9) == 0) {
+  err:
+    ctr_clex_emit_error("Expected either infixr or infixl or lazyev");
+    return;
+  } else if (l = ctr_str_startswith(ctr_code, ":language")) {
     // #:language ext,ext,ext
     int lineno = ctr_clex_line_number;
-    ctr_code += 9;
+    ctr_code += l;
     int t0 = ctr_clex_tok();
     if (t0 != TokenTypeRef || lineno != ctr_clex_line_number) {
     err_v:;
@@ -929,19 +937,19 @@ enum TokenType ctr_clex_tok() {
       return TokenTypeInv;
     ctr_code--;
   }
-  if (strncmp(ctr_code, "True", 4) == 0) {
-    if (ctr_clex_is_delimiter(*(ctr_code + 4))) {
+  if (ctr_str_startswith(ctr_code, "True")) {
+    if (ctr_clex_is_delimiter(ctr_code[4])) {
       ctr_code += 4;
       return TokenTypeBooleanyes;
     }
   }
-  if (strncmp(ctr_code, "False", 5) == 0) {
+  if (ctr_str_startswith(ctr_code, "False")) {
     if (ctr_clex_is_delimiter(*(ctr_code + 5))) {
       ctr_code += 5;
       return TokenTypeBooleanno;
     }
   }
-  if (strncmp(ctr_code, "Nil", 3) == 0) {
+  if (ctr_str_startswith(ctr_code, "Nil")) {
     if (ctr_clex_is_delimiter(*(ctr_code + 3))) {
       ctr_code += 3;
       return TokenTypeNil;
@@ -949,7 +957,7 @@ enum TokenType ctr_clex_tok() {
   }
 
   /* if we encounter a '?>' sequence, switch to verbatim mode in lexer */
-  if (strncmp(ctr_code, "?>", 2) == 0) {
+  if (ctr_str_startswith(ctr_code, "?>")) {
     ctr_clex_verbatim_mode = 1;
     ctr_code += 2;
     // memcpy (ctr_clex_buffer, "?", 1);
@@ -959,7 +967,7 @@ enum TokenType ctr_clex_tok() {
 
   /* if lexer is in verbatim mode and we pass the '>' symbol insert a fake quote
    * as next token */
-  if (strncmp(ctr_code, ">", 1) == 0 && ctr_clex_verbatim_mode == 1) {
+  if (ctr_str_startswith(ctr_code, ">") && ctr_clex_verbatim_mode) {
     // ctr_clex_verbatim_mode_insert_quote = (uintptr_t) (ctr_code + 1);      /*
     // this way because multiple invocations should return same result */
     // ctr_code++;
@@ -1158,8 +1166,7 @@ char *ctr_clex_readstr() {
           ivarlen = q - 2;
           memcpy(ivarname, ctr_code + 2, q - 2);
           ctr_string_interpolation = 1;
-          ctr_code_eoi =
-              ctr_code + q + 0; /* '$','$' and the name  ( name + 3 ) */
+          ctr_code_eoi = ctr_code + q; /* '$','$' and the name  ( name + 3 ) */
           break;
         }
       }

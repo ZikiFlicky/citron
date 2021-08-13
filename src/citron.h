@@ -518,7 +518,6 @@ struct lexer_state {
 	char *ctr_code;
 	char *ctr_code_st;
 	char *ctr_code_eoi;
-	char *ctr_eofcode;
 	char *ctr_clex_oldptr;
 	char *ctr_clex_olderptr;
 	int ctr_clex_verbatim_mode;

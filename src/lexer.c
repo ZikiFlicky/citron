@@ -18,7 +18,6 @@ char *ctr_clex_buffer;
 char *ctr_code;
 char *ctr_code_st;
 char *ctr_code_eoi;
-char *ctr_eofcode;
 char *ctr_clex_oldptr;
 char *ctr_clex_olderptr;
 ctr_bool ctr_clex_verbatim_mode = 0; /* flag: indicates whether lexer operates in
@@ -48,8 +47,7 @@ char *ctr_clex_desc_tok_booleanno = "False";
 char *ctr_clex_desc_tok_nil = "Nil";
 char *ctr_clex_desc_tok_assignment = ":=";  // derp
 char *ctr_clex_desc_tok_passignment = "=>"; // REEEE
-char *ctr_clex_desc_tok_symbol =
-    "\\"; // TODO FIXME Find a better character for this
+char *ctr_clex_desc_tok_symbol = "\\"; // TODO FIXME Find a better character for this
 char *ctr_clex_desc_tok_ret = "^";
 char *ctr_clex_desc_tok_lit_esc = "$";
 char *ctr_clex_desc_tok_ret_unicode = "↑";
@@ -256,7 +254,6 @@ int ctr_clex_save_state() {
                            ctr_code,
                            ctr_code_st,
                            ctr_code_eoi,
-                           ctr_eofcode,
                            ctr_clex_oldptr,
                            ctr_clex_olderptr,
                            ctr_clex_verbatim_mode,
@@ -277,7 +274,6 @@ int ctr_clex_dump_state(struct lexer_state *ls) {
   ls->ctr_code = ctr_code;
   ls->ctr_code_st = ctr_code_st;
   ls->ctr_code_eoi = ctr_code_eoi;
-  ls->ctr_eofcode = ctr_eofcode;
   ls->ctr_clex_oldptr = ctr_clex_oldptr;
   ls->ctr_clex_olderptr = ctr_clex_olderptr;
   ls->ctr_clex_verbatim_mode = ctr_clex_verbatim_mode;
@@ -308,7 +304,6 @@ int ctr_clex_restore_state(int id) {
   ctr_code = ls.ctr_code;
   ctr_code_st = ls.ctr_code_st;
   ctr_code_eoi = ls.ctr_code_eoi;
-  ctr_eofcode = ls.ctr_eofcode;
   ctr_clex_oldptr = ls.ctr_clex_oldptr;
   ctr_clex_olderptr = ls.ctr_clex_olderptr;
   ctr_clex_verbatim_mode = ls.ctr_clex_verbatim_mode;
@@ -328,7 +323,6 @@ int ctr_clex_load_state(struct lexer_state ls) {
   ctr_code = ls.ctr_code;
   ctr_code_st = ls.ctr_code_st;
   ctr_code_eoi = ls.ctr_code_eoi;
-  ctr_eofcode = ls.ctr_eofcode;
   ctr_clex_oldptr = ls.ctr_clex_oldptr;
   ctr_clex_olderptr = ls.ctr_clex_olderptr;
   ctr_clex_verbatim_mode = ls.ctr_clex_verbatim_mode;
@@ -387,10 +381,8 @@ void ctr_clex_load(char *prg) {
   ctr_code_st = ctr_code;
   ctr_clex_buffer = ctr_heap_allocate_tracked(ctr_clex_bflmt);
   ctr_clex_buffer[0] = '\0';
-  ctr_eofcode = (ctr_code + ctr_program_length);
   ctr_clex_line_number = 0;
   ctr_clex_code_init = ctr_code;
-  ctr_clex_code_end = ctr_eofcode;
 }
 
 /**
@@ -662,7 +654,7 @@ enum TokenType ctr_clex_tok() {
     ctr_clex_oldptr = ctr_code;
     return tinj;
   }
-  if (ctr_code == ctr_eofcode) {
+  if (ctr_code[0] == '\0') {
     return TokenTypeFin;
   }
   char c;
@@ -712,7 +704,7 @@ enum TokenType ctr_clex_tok() {
     return TokenTypeQuote;
   }
 
-  if (ctr_code != ctr_eofcode && *ctr_code == '\n' && check_next_line_empty() &&
+  if (ctr_code[0] != '\0' && *ctr_code == '\n' && check_next_line_empty() &&
       oneLineExpressions->value) {
     ctr_code++;
     return TokenTypeDot;
@@ -735,7 +727,7 @@ enum TokenType ctr_clex_tok() {
     ctr_code++;
     c = *ctr_code;
   }
-  if (ctr_code == ctr_eofcode) {
+  if (ctr_code[0] == '\0') {
     return TokenTypeFin;
   }
   if (c == '\\') {
@@ -758,7 +750,7 @@ enum TokenType ctr_clex_tok() {
     }
     return TokenTypeSymbol;
   }
-  if (c == '$' && ctr_code + 1 < ctr_eofcode) {
+  if (c == '$' && ctr_code[1] != '\0') {
     char _t = *(++ctr_code);
     int q = 0;
     /* The lexer state should this succeed
@@ -778,7 +770,7 @@ enum TokenType ctr_clex_tok() {
       if (!q)
         q = 1;
     case '!': // literal unescape
-      if (ctr_code + 1 < ctr_eofcode && !isspace(*(++ctr_code))) {
+      if (ctr_code[1] != '\0' && !isspace(*(++ctr_code))) {
         ctr_clex_tokvlen = -3 - q; // unescape mode (q=1 quote)
         return TokenTypeLiteralEsc;
       }
@@ -805,7 +797,7 @@ enum TokenType ctr_clex_tok() {
   }
   if (c == '{') {
     ctr_code++;
-    if (ctr_code != ctr_eofcode && (c = *ctr_code) == '\\') {
+    if ((c = *ctr_code) == '\\') {
       ctr_code++;
       return TokenTypeBlockopenMap;
     } else
@@ -823,20 +815,19 @@ enum TokenType ctr_clex_tok() {
     ctr_code++;
     return TokenTypeChain;
   }
-  if (((c == 'i') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == 's') &&
+  if (((c == 'i') && (ctr_code[1] == 's') &&
        isspace(*(ctr_code + 2))) ||
-      ((c == ':') && (ctr_code + 1) < ctr_eofcode &&
-       (*(ctr_code + 1) == '='))) {
+      ((c == ':') && (ctr_code[1] == '='))) {
     ctr_code += 2;
     return TokenTypeAssignment;
   }
-  if ((c == '=') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == '>')) {
+  if ((c == '=') && ctr_code[1] == '>') {
     ctr_code += 2;
     return TokenTypePassignment;
   }
-  if (c == ':' /*&& ctr_code+1!=ctr_eofcode && *(ctr_code+1) != ':' */) {
+  if (c == ':' /*&& ctr_code[1] != ':' */) {
     int is_name = 0;
-    while (ctr_code + 1 < ctr_eofcode && *(ctr_code + 1) == ':') {
+    while (ctr_code[1] == ':') {
       is_name++;
       ctr_code++;
       ctr_clex_buffer[i++] = ':';
@@ -855,7 +846,7 @@ enum TokenType ctr_clex_tok() {
     return TokenTypeRet;
   }
   //↑
-  if ((ctr_code + 2) < ctr_eofcode && (uint8_t)c == 226 &&
+  if ((uint8_t)c == 226 &&
       ((uint8_t) * (ctr_code + 1) == 134) &&
       ((uint8_t) * (ctr_code + 2) == 145)) {
     ctr_code += 3;
@@ -863,10 +854,10 @@ enum TokenType ctr_clex_tok() {
   }
   if (c == -30) {
     // ‹›
-    if (((ctr_code + 1) < ctr_eofcode) && *(ctr_code + 1) == -128) {
-      if (((ctr_code + 2) < ctr_eofcode) && *(ctr_code + 2) == -71)
+    if (ctr_code[1] == -128) {
+      if (ctr_code[2] == -71)
         return TokenTypeFancyQuotOpen;
-      if (((ctr_code + 2) < ctr_eofcode) && *(ctr_code + 2) == -72)
+      if (ctr_code[2] == -72)
         return TokenTypeFancyQuotClos;
     }
   }
@@ -874,8 +865,7 @@ enum TokenType ctr_clex_tok() {
     ctr_code++;
     return TokenTypeQuote;
   }
-  if ((c == '-' && (ctr_code + 1) < ctr_eofcode && isdigit(*(ctr_code + 1))) ||
-      isdigit(c)) {
+  if ((c == '-' && isdigit(ctr_code[1])) || isdigit(c)) {
     int xnum_likely = c == '0';
     int base = 10;
     ctr_clex_buffer[i] = c;
@@ -906,8 +896,7 @@ enum TokenType ctr_clex_tok() {
       ctr_code++;
       c = toupper(*ctr_code);
     }
-    if (c == '.' && (ctr_code + 1 <= ctr_eofcode) &&
-        !ctr_clex_is_valid_digit_in_base(toupper(*(ctr_code + 1)), base)) {
+    if (c == '.' && !ctr_clex_is_valid_digit_in_base(toupper(ctr_code[1]), base)) {
       return TokenTypeNumber;
     }
     if (c == '.') {
@@ -982,7 +971,7 @@ enum TokenType ctr_clex_tok() {
   // if (*ctr_code == ':') {
   //   int i = 1;
   //   ctr_code++;
-  //   while(ctr_code+1!=ctr_eofcode && *(ctr_code++)==':') i++;
+  //   while(ctr_code[1]!='\0' && *(ctr_code++)==':') i++;
   //   if(i>ctr_clex_bflmt) ctr_clex_emit_error( "Token buffer exhausted. Tokens
   //   may not exceed 255 bytes" ); ctr_clex_tokvlen = i>2 ? i-1 : i; //leave
   //   one ':' for the KWM if more than two chars for(int v=0;
@@ -997,11 +986,11 @@ enum TokenType ctr_clex_tok() {
   while (!isspace(c) &&
          (c != '#' && c != '(' && c != ')' && c != '[' && c != ']' &&
           c != '{' && c != '}' && c != '.' && c != ',' && c != '^' &&
-          (!((ctr_code + 2) < ctr_eofcode && (uint8_t)c == 226 &&
+          (!((uint8_t)c == 226 &&
              ((uint8_t) * (ctr_code + 1) == 134) &&
              ((uint8_t) * (ctr_code + 2) == 145))) &&
           (c != ':') && c != '\'') &&
-         ctr_code != ctr_eofcode) {
+         ctr_code[0] != '\0') {
     ctr_clex_buffer[i] = c;
     ctr_clex_tokvlen++;
     i++;
@@ -1010,7 +999,7 @@ enum TokenType ctr_clex_tok() {
           "Token Buffer Exausted. Tokens may not exceed 255 bytes");
     }
     ctr_code++;
-    if (ctr_code == ctr_eofcode)
+    if (ctr_code[0] == '\0')
       return TokenTypeRef;
     c = *ctr_code;
   }
@@ -1083,8 +1072,7 @@ char *ctr_clex_readfstr() {
     if (c == '\n')
       ctr_clex_line_number++;
     if (c == -30) {
-      if (((ctr_code + 1) < ctr_eofcode) && *(ctr_code + 1) == -128 &&
-          ((ctr_code + 2) < ctr_eofcode) && *(ctr_code + 2) == -70) {
+      if (ctr_code[1] == -128 && ctr_code[2] == -70) {
         break;
       }
     }
@@ -1100,7 +1088,7 @@ char *ctr_clex_readfstr() {
     }
     *(strbuff++) = c;
     ctr_code++;
-    if (ctr_code < ctr_eofcode)
+    if (ctr_code[0] != '\0')
       c = *ctr_code;
     else {
       ctr_clex_emit_error("Expected closing quote");
@@ -1138,13 +1126,13 @@ char *ctr_clex_readstr() {
   while (/* reading string in non-verbatim mode, read until the first non-escaped quote */
          (!ctr_clex_verbatim_mode && (c != '\'' || escape == 1)) ||
          /* reading string in verbatim mode, read until the '<?' sequence */
-         (ctr_clex_verbatim_mode && (c != '<' || ((ctr_code + 1) >= ctr_eofcode) || *(ctr_code + 1) != '?') && ctr_code < ctr_eofcode)) {
+         (ctr_clex_verbatim_mode && ctr_code[0] != '\0' && (c != '<' || ctr_code[1] == '\0' || ctr_code[1] != '?'))) {
 
     /* enter interpolation mode ( $$x ) */
     if (!ctr_clex_verbatim_mode && !escape && c == '$') {
       /* expression interpolation ( ${{some expr}}$ ) */
-      if (((ctr_code + 1) < ctr_eofcode) && *(ctr_code + 1) == '{' &&
-          ((ctr_code + 2) < ctr_eofcode) && *(ctr_code + 2) == '{') {
+      if (ctr_code[1] == '{' &&
+          ctr_code[2] == '{') {
         // transform the source _in place_
         char *end = ctr_clex_read_balanced('}', '{', &ctr_clex_line_number);
         if (!end) {
@@ -1159,13 +1147,13 @@ char *ctr_clex_readstr() {
           end[1] = '\'';
           break;
         }
-      } else if (((ctr_code + 1) < ctr_eofcode) && *(ctr_code + 1) == '$') {
+      } else if (ctr_code[1] == '$') {
         int q = 2;
-        while ((ctr_code + q) < ctr_eofcode && !isspace(*(ctr_code + q)) &&
-               *(ctr_code + q) != '$' && *(ctr_code + q) != '\'' && q < 255)
+        while (!isspace(ctr_code[q]) &&
+               ctr_code[q] != '$' && ctr_code[q] != '\'' && q < 255)
           q++;
-        if (isspace(*(ctr_code + q)) || *(ctr_code + q) == '$' ||
-            *(ctr_code + q) == '\'') {
+        if (isspace(ctr_code[q]) || ctr_code[q] == '$' ||
+            ctr_code[q] == '\'') {
           ivarname = ctr_heap_allocate(q);
           ivarlen = q - 2;
           memcpy(ivarname, ctr_code + 2, q - 2);
@@ -1205,8 +1193,7 @@ char *ctr_clex_readstr() {
         break;
       case 'x': {
         int is_explicitly_enclosed;
-        ctr_code += (is_explicitly_enclosed =
-                         ctr_code + 1 < ctr_eofcode && *(ctr_code + 1) == '{');
+        ctr_code += (is_explicitly_enclosed = ctr_code[1] == '{');
         c = 0;
         while ((is_explicitly_enclosed)
                    ? *(ctr_code + 1) != '}' && ctr_clex_is_valid_digit_in_base(
@@ -1242,8 +1229,7 @@ char *ctr_clex_readstr() {
       case 'u': {
         const char hexs[] = "0123456789ABCDEF";
         uint32_t uc = 0, is_explicitly_enclosed;
-        ctr_code += (is_explicitly_enclosed =
-                         ctr_code + 1 < ctr_eofcode && *(ctr_code + 1) == '{');
+        ctr_code += (is_explicitly_enclosed = ctr_code[1] == '{');
         while (1) {
           char cc = *(ctr_code + 1);
           if (is_explicitly_enclosed && cc == '}') {
@@ -1315,7 +1301,7 @@ char *ctr_clex_readstr() {
     escape = 0;
     *(strbuff++) = c;
     ctr_code++;
-    if (ctr_code < ctr_eofcode)
+    if (ctr_code[0] != '\0')
       c = *ctr_code;
     else {
       ctr_clex_emit_error("Expected closing quote");
@@ -1323,10 +1309,9 @@ char *ctr_clex_readstr() {
     }
   }
   if (ctr_clex_verbatim_mode) {
-    if (ctr_code >= ctr_eofcode) { /* if we reached EOF in verbatim mode, append
+    if (ctr_code[0] == '\0') { /* if we reached EOF in verbatim mode, append
                                       closing sequence '<?.' */
       strncpy(ctr_code, "<?.", 3);
-      ctr_eofcode += 3;
     }
     ctr_code++; /* in verbatim mode, hop over the trailing ? as well */
   }

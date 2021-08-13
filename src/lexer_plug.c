@@ -15,7 +15,6 @@ static ctr_size ctr_lex_tokvlen = 0; /* length of the string value of a token */
 static char *ctr_lex_buffer;
 static char *ctr_code;
 static char *ctr_code_eoi;
-static char *ctr_eofcode;
 static char *ctr_code_st;
 static char *ctr_lex_oldptr;
 static char *ctr_lex_olderptr;
@@ -27,31 +26,34 @@ static uintptr_t ctr_lex_verbatim_mode_insert_quote =
 int ctr_lex_line_number = 0;
 static int ctr_lex_old_line_number = 0;
 
-static char *ctr_lex_desc_tok_ref = "reference";
-static char *ctr_lex_desc_tok_quote = "'";
-static char *ctr_lex_desc_tok_number = "number";
-static char *ctr_lex_desc_tok_paropen = "(";
-static char *ctr_lex_desc_tok_parclose = ")";
-static char *ctr_lex_desc_tok_blockopen = "{";
-static char *ctr_lex_desc_tok_blockopen_map = "{\\";
-static char *ctr_lex_desc_tok_blockclose = "}";
-static char *ctr_lex_desc_tok_tupopen = "[";
-static char *ctr_lex_desc_tok_tupclose = "]";
-static char *ctr_lex_desc_tok_colon = ":";
-static char *ctr_lex_desc_tok_dot = ".";
-static char *ctr_lex_desc_tok_chain = ",";
-static char *ctr_lex_desc_tok_booleanyes = "True";
-static char *ctr_lex_desc_tok_booleanno = "False";
-static char *ctr_lex_desc_tok_nil = "Nil";
-static char *ctr_lex_desc_tok_assignment = ":=";  // derp
-static char *ctr_lex_desc_tok_passignment = "=>"; // REEEE
-static char *ctr_lex_desc_tok_ret = "^";
-static char *ctr_lex_desc_tok_ret_unicode = "↑";
-static char *ctr_lex_desc_tok_symbol =
-    "\\"; // TODO FIXME Find a better character for this
-static char *ctr_lex_desc_tok_lit_esc = "$";
-static char *ctr_lex_desc_tok_fin = "end of program";
-static char *ctr_lex_desc_tok_unknown = "(unknown token)";
+
+char *ctr_lex_desc_tok_ref = "reference";
+char *ctr_lex_desc_tok_quote = "'";
+char *ctr_lex_desc_tok_number = "number";
+char *ctr_lex_desc_tok_paropen = "(";
+char *ctr_lex_desc_tok_parclose = ")";
+char *ctr_lex_desc_tok_blockopen = "{";
+char *ctr_lex_desc_tok_blockopen_map = "{\\";
+char *ctr_lex_desc_tok_blockclose = "}";
+char *ctr_lex_desc_tok_tupopen = "[";
+char *ctr_lex_desc_tok_tupclose = "]";
+char *ctr_lex_desc_tok_colon = ":";
+char *ctr_lex_desc_tok_dot = ".";
+char *ctr_lex_desc_tok_chain = ",";
+char *ctr_lex_desc_tok_booleanyes = "True";
+char *ctr_lex_desc_tok_booleanno = "False";
+char *ctr_lex_desc_tok_nil = "Nil";
+char *ctr_lex_desc_tok_assignment = ":=";  // derp
+char *ctr_lex_desc_tok_passignment = "=>"; // REEEE
+char *ctr_lex_desc_tok_symbol = "\\"; // TODO FIXME Find a better character for this
+char *ctr_lex_desc_tok_ret = "^";
+char *ctr_lex_desc_tok_lit_esc = "$";
+char *ctr_lex_desc_tok_ret_unicode = "↑";
+char *ctr_lex_desc_tok_fin = "end of program";
+char *ctr_lex_desc_tok_inv = "`";
+char *ctr_lex_desc_tok_fancy_quot_open = "‹";
+char *ctr_lex_desc_tok_fancy_quot_clos = "›";
+char *ctr_lex_desc_tok_unknown = "(unknown token)";
 
 static int ctr_string_interpolation = 0;
 static char *ivarname;
@@ -79,7 +81,6 @@ int ctr_lex_save_state() {
                            ctr_code,
                            ctr_code_st,
                            ctr_code_eoi,
-                           ctr_eofcode,
                            ctr_lex_oldptr,
                            ctr_lex_olderptr,
                            ctr_lex_verbatim_mode,
@@ -109,7 +110,6 @@ int ctr_lex_restore_state(int id) {
   ctr_code = ls.ctr_code;
   ctr_code_st = ls.ctr_code_st;
   ctr_code_eoi = ls.ctr_code_eoi;
-  ctr_eofcode = ls.ctr_eofcode;
   ctr_lex_oldptr = ls.ctr_clex_oldptr;
   ctr_lex_olderptr = ls.ctr_clex_olderptr;
   ctr_lex_verbatim_mode = ls.ctr_clex_verbatim_mode;
@@ -144,14 +144,17 @@ unsigned long ctr_lex_position() {
 char *ctr_lex_get_buf() { return ctr_code; }
 
 ctr_object *ctr_lex_get_buf_str() {
-  return ctr_build_string(ctr_code, ctr_eofcode - ctr_code);
+  return ctr_build_string(ctr_code, strlen(ctr_code));
 }
 
 void ctr_lex_skip(int len) {
   // printf("skipping %d\n", len);
-  ctr_code = ctr_code + len;
-  if (ctr_code > ctr_eofcode)
-    ctr_code = ctr_eofcode;
+  int i;
+  for (i = 0; i < len; ++i) {
+    if (ctr_code == '\0')
+      break;
+    ++ctr_code;
+  }
 }
 
 /**
@@ -176,7 +179,6 @@ void ctr_lex_load(char *prg, ctr_size len) {
   ctr_code_st = ctr_code;
   ctr_lex_buffer = ctr_heap_allocate_tracked(ctr_lex_bflmt);
   ctr_lex_buffer[0] = '\0';
-  ctr_eofcode = (ctr_code + len);
   ctr_lex_line_number = 0;
 }
 
@@ -189,78 +191,34 @@ void ctr_lex_load(char *prg, ctr_size len) {
 char *ctr_lex_tok_value() { return ctr_lex_buffer; }
 
 char *ctr_lex_tok_describe(enum TokenType token) {
-  char *description;
   switch (token) {
-  case TokenTypeRet:
-    description = ctr_lex_desc_tok_ret;
-    break;
-  case TokenTypeAssignment:
-    description = ctr_lex_desc_tok_assignment;
-    break;
-  case TokenTypePassignment:
-    description = ctr_lex_desc_tok_passignment;
-    break;
-  case TokenTypeBlockclose:
-    description = ctr_lex_desc_tok_blockclose;
-    break;
-  case TokenTypeBlockopen:
-    description = ctr_lex_desc_tok_blockopen;
-    break;
-  case TokenTypeBlockopenMap:
-    description = ctr_lex_desc_tok_blockopen_map;
-    break;
-  case TokenTypeBooleanno:
-    description = ctr_lex_desc_tok_booleanno;
-    break;
-  case TokenTypeBooleanyes:
-    description = ctr_lex_desc_tok_booleanyes;
-    break;
-  case TokenTypeChain:
-    description = ctr_lex_desc_tok_chain;
-    break;
-  case TokenTypeColon:
-    description = ctr_lex_desc_tok_colon;
-    break;
-  case TokenTypeDot:
-    description = ctr_lex_desc_tok_dot;
-    break;
-  case TokenTypeFin:
-    description = ctr_lex_desc_tok_fin;
-    break;
-  case TokenTypeNil:
-    description = ctr_lex_desc_tok_nil;
-    break;
-  case TokenTypeNumber:
-    description = ctr_lex_desc_tok_number;
-    break;
-  case TokenTypeParclose:
-    description = ctr_lex_desc_tok_parclose;
-    break;
-  case TokenTypeParopen:
-    description = ctr_lex_desc_tok_paropen;
-    break;
-  case TokenTypeQuote:
-    description = ctr_lex_desc_tok_quote;
-    break;
-  case TokenTypeRef:
-    description = ctr_lex_desc_tok_ref;
-    break;
-  case TokenTypeTupopen:
-    description = ctr_lex_desc_tok_tupopen;
-    break;
-  case TokenTypeTupclose:
-    description = ctr_lex_desc_tok_tupclose;
-    break;
-  case TokenTypeSymbol:
-    description = ctr_lex_desc_tok_symbol;
-    break;
-  case TokenTypeLiteralEsc:
-    description = ctr_lex_desc_tok_lit_esc;
-    break;
-  default:
-    description = ctr_lex_desc_tok_unknown;
+  case TokenTypeRet:           return ctr_lex_desc_tok_ret;
+  case TokenTypeAssignment:    return ctr_lex_desc_tok_assignment;
+  case TokenTypePassignment:   return ctr_lex_desc_tok_passignment;
+  case TokenTypeBlockclose:    return ctr_lex_desc_tok_blockclose;
+  case TokenTypeBlockopen:     return ctr_lex_desc_tok_blockopen;
+  case TokenTypeBlockopenMap:  return ctr_lex_desc_tok_blockopen_map;
+  case TokenTypeBooleanno:     return ctr_lex_desc_tok_booleanno;
+  case TokenTypeBooleanyes:    return ctr_lex_desc_tok_booleanyes;
+  case TokenTypeChain:         return ctr_lex_desc_tok_chain;
+  case TokenTypeColon:         return ctr_lex_desc_tok_colon;
+  case TokenTypeDot:           return ctr_lex_desc_tok_dot;
+  case TokenTypeFin:           return ctr_lex_desc_tok_fin;
+  case TokenTypeNil:           return ctr_lex_desc_tok_nil;
+  case TokenTypeNumber:        return ctr_lex_desc_tok_number;
+  case TokenTypeParclose:      return ctr_lex_desc_tok_parclose;
+  case TokenTypeParopen:       return ctr_lex_desc_tok_paropen;
+  case TokenTypeQuote:         return ctr_lex_desc_tok_quote;
+  case TokenTypeRef:           return ctr_lex_desc_tok_ref;
+  case TokenTypeTupopen:       return ctr_lex_desc_tok_tupopen;
+  case TokenTypeTupclose:      return ctr_lex_desc_tok_tupclose;
+  case TokenTypeSymbol:        return ctr_lex_desc_tok_symbol;
+  case TokenTypeLiteralEsc:    return ctr_lex_desc_tok_lit_esc;
+  case TokenTypeInv:           return ctr_lex_desc_tok_inv;
+  case TokenTypeFancyQuotOpen: return ctr_lex_desc_tok_fancy_quot_open;
+  case TokenTypeFancyQuotClos: return ctr_lex_desc_tok_fancy_quot_clos;
+  default:                     return ctr_lex_desc_tok_unknown;
   }
-  return description;
 }
 
 /**
@@ -305,7 +263,7 @@ int ctr_lex_is_valid_digit_in_base(char c, int b) {
  * token.
  */
 enum TokenType ctr_lex_tok() {
-  if (ctr_code == ctr_eofcode) {
+  if (ctr_code[0] == '\0') {
     return TokenTypeFin;
   }
   char c;
@@ -353,14 +311,14 @@ enum TokenType ctr_lex_tok() {
     return TokenTypeQuote;
   }
 
-  if (ctr_code != ctr_eofcode && *ctr_code == '\n' && check_next_line_empty() &&
+  if (ctr_code[0] != '\0' && *ctr_code == '\n' && check_next_line_empty() &&
       oneLineExpressions->value) {
     ctr_code++;
     return TokenTypeDot;
   }
 
   c = *ctr_code;
-  while (ctr_code != ctr_eofcode && (isspace(c) || c == '#' || comment_mode)) {
+  while (ctr_code[0] != '\0' && (isspace(c) || c == '#' || comment_mode)) {
     if (c == '\n') {
       comment_mode = 0;
       ctr_lex_line_number++;
@@ -372,7 +330,7 @@ enum TokenType ctr_lex_tok() {
     if (comment_mode)
       commented_s++;
   }
-  if (ctr_code == ctr_eofcode) {
+  if (ctr_code[0] == '\0') {
     return TokenTypeFin;
   }
   if (c == '\\') {
@@ -388,7 +346,7 @@ enum TokenType ctr_lex_tok() {
     }
     return TokenTypeSymbol;
   }
-  if (c == '$' && ctr_code + 1 < ctr_eofcode) {
+  if (c == '$' && ctr_code[1] != '\0') {
     char _t = *(++ctr_code);
     int q = 0;
     /* The lexer state should this succeed
@@ -408,7 +366,7 @@ enum TokenType ctr_lex_tok() {
     case '\'': // quote
       q = 1;
     case '!': // literal unescape
-      if (ctr_code + 1 < ctr_eofcode && !isspace(*(++ctr_code))) {
+      if (ctr_code[1] != '\0' && !isspace(*(++ctr_code))) {
         ctr_lex_tokvlen = -3 - q; // unescape mode (q=1 quote)
         return TokenTypeLiteralEsc;
       }
@@ -435,7 +393,7 @@ enum TokenType ctr_lex_tok() {
   }
   if (c == '{') {
     ctr_code++;
-    if (ctr_code != ctr_eofcode && (c = *ctr_code) == '\\') {
+    if (ctr_code[0] != '\0' && (c = *ctr_code) == '\\') {
       ctr_code++;
       return TokenTypeBlockopenMap;
     } else
@@ -453,20 +411,19 @@ enum TokenType ctr_lex_tok() {
     ctr_code++;
     return TokenTypeChain;
   }
-  if (((c == 'i') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == 's') &&
+  if ((c == 'i' && (*(ctr_code + 1) == 's') &&
        isspace(*(ctr_code + 2))) ||
-      ((c == ':') && (ctr_code + 1) < ctr_eofcode &&
-       (*(ctr_code + 1) == '='))) {
+      ((c == ':') && (*(ctr_code + 1) == '='))) {
     ctr_code += 2;
     return TokenTypeAssignment;
   }
-  if ((c == '=') && (ctr_code + 1) < ctr_eofcode && (*(ctr_code + 1) == '>')) {
+  if (c == '=' && (*(ctr_code + 1) == '>')) {
     ctr_code += 2;
     return TokenTypePassignment;
   }
-  if (c == ':' /*&& ctr_code+1!=ctr_eofcode && *(ctr_code+1) != ':' */) {
+  if (c == ':' /*&& ctr_code[1] != ':' */) {
     int is_name = 0;
-    while (ctr_code + 1 < ctr_eofcode && *(ctr_code + 1) == ':') {
+    while (*(ctr_code + 1) == ':') {
       is_name++;
       ctr_code++;
       ctr_lex_buffer[i++] = ':';
@@ -485,7 +442,7 @@ enum TokenType ctr_lex_tok() {
     return TokenTypeRet;
   }
   //↑
-  if ((ctr_code + 2) < ctr_eofcode && (uint8_t)c == 226 &&
+  if ((uint8_t)c == 226 &&
       ((uint8_t) * (ctr_code + 1) == 134) &&
       ((uint8_t) * (ctr_code + 2) == 145)) {
     ctr_code += 3;
@@ -495,7 +452,7 @@ enum TokenType ctr_lex_tok() {
     ctr_code++;
     return TokenTypeQuote;
   }
-  if ((c == '-' && (ctr_code + 1) < ctr_eofcode && isdigit(*(ctr_code + 1))) ||
+  if ((c == '-' && isdigit(ctr_code[1])) ||
       isdigit(c)) {
     int xnum_likely = c == '0';
     int base = 10;
@@ -523,8 +480,7 @@ enum TokenType ctr_lex_tok() {
       ctr_code++;
       c = toupper(*ctr_code);
     }
-    if (c == '.' && (ctr_code + 1 <= ctr_eofcode) &&
-        !ctr_lex_is_valid_digit_in_base(toupper(*(ctr_code + 1)), base)) {
+    if (c == '.' && !ctr_lex_is_valid_digit_in_base(toupper(*(ctr_code + 1)), base)) {
       return TokenTypeNumber;
     }
     if (c == '.') {
@@ -586,7 +542,7 @@ enum TokenType ctr_lex_tok() {
   // if (*ctr_code == ':') {
   //   int i = 1;
   //   ctr_code++;
-  //   while(ctr_code+1!=ctr_eofcode && *(ctr_code++)==':') i++;
+  //   while(ctr_code[1] != '\0' && *(ctr_code++)==':') i++;
   //   if(i>ctr_lex_bflmt) ctr_lex_emit_error( "Token buffer exhausted. Tokens
   //   may not exceed 255 bytes" ); ctr_lex_tokvlen = i>2 ? i-1 : i; //leave one
   //   ':' for the KWM if more than two chars for(int v=0; v<ctr_lex_tokvlen;
@@ -601,11 +557,11 @@ enum TokenType ctr_lex_tok() {
   while (!isspace(c) &&
          (c != '#' && c != '(' && c != ')' && c != '[' && c != ']' &&
           c != '{' && c != '}' && c != '.' && c != ',' && c != '^' &&
-          (!((ctr_code + 2) < ctr_eofcode && (uint8_t)c == 226 &&
+          (!((uint8_t)c == 226 &&
              ((uint8_t) * (ctr_code + 1) == 134) &&
              ((uint8_t) * (ctr_code + 2) == 145))) &&
           (c != ':') && c != '\'') &&
-         ctr_code != ctr_eofcode) {
+         ctr_code[0] != '\0') {
     ctr_lex_buffer[i] = c;
     ctr_lex_tokvlen++;
     i++;
@@ -614,7 +570,7 @@ enum TokenType ctr_lex_tok() {
           "Token Buffer Exausted. Tokens may not exceed 255 bytes");
     }
     ctr_code++;
-    if (ctr_code == ctr_eofcode)
+    if (ctr_code[0] == '\0')
       return TokenTypeRef;
     c = *ctr_code;
   }
@@ -651,19 +607,17 @@ char *ctr_lex_readstr() {
           ctr_lex_verbatim_mode == 0 && (c != '\'' || escape == 1)) ||
          (/* reading string in verbatim mode, read until the '<?' sequence */
           ctr_lex_verbatim_mode == 1 &&
-          !(c == '<' && ((ctr_code + 1) < ctr_eofcode) &&
-            *(ctr_code + 1) == '?') &&
-          (ctr_code < ctr_eofcode))) {
+          !(c == '<' && ctr_code[1] == '?') &&
+          (ctr_code[0] != '\0'))) {
 
     /* enter interpolation mode ( $$x ) */
-    if (!ctr_lex_verbatim_mode && !escape && c == '$' &&
-        ((ctr_code + 1) < ctr_eofcode) && *(ctr_code + 1) == '$') {
+    if (!ctr_lex_verbatim_mode && !escape && c == '$' && ctr_code[1] == '$') {
       int q = 2;
-      while ((ctr_code + q) < ctr_eofcode && !isspace(*(ctr_code + q)) &&
-             *(ctr_code + q) != '$' && *(ctr_code + q) != '\'' && q < 255)
+      while (!isspace(ctr_code[q]) &&
+             ctr_code[q] != '$' && ctr_code[q] != '\'' && q < 255)
         q++;
-      if (isspace(*(ctr_code + q)) || *(ctr_code + q) == '$' ||
-          *(ctr_code + q) == '\'') {
+      if (isspace(ctr_code[q]) || ctr_code[q] == '$' ||
+          ctr_code[q] == '\'') {
         ivarname = ctr_heap_allocate(q);
         ivarlen = q - 2;
         memcpy(ivarname, ctr_code + 2, q - 2);
@@ -731,7 +685,7 @@ char *ctr_lex_readstr() {
     *(strbuff) = c;
     strbuff++;
     ctr_code++;
-    if (ctr_code < ctr_eofcode)
+    if (ctr_code[0] != '\0')
       c = *ctr_code;
     else {
       // ctr_lex_emit_error("Expected closing quote");
@@ -739,10 +693,9 @@ char *ctr_lex_readstr() {
     }
   }
   if (ctr_lex_verbatim_mode) {
-    if (ctr_code >= ctr_eofcode) { /* if we reached EOF in verbatim mode, append
+    if (ctr_code[0] != '\0') { /* if we reached EOF in verbatim mode, append
                                       closing sequence '<?.' */
       strncpy(ctr_code, "<?.", 3);
-      ctr_eofcode += 3;
     }
     ctr_code++; /* in verbatim mode, hop over the trailing ? as well */
   }
@@ -756,7 +709,6 @@ void ctr_lex_parse_pragma(const char *descr) {
   struct lexer_state s, n;
   ctr_clex_dump_state(&s);
   n = s;
-  n.ctr_eofcode = descr + strlen(descr);
   n.ctr_clex_oldptr = n.ctr_clex_olderptr = n.ctr_code = descr;
   ctr_clex_load_state(n);
   ctr_match_toggle_pragma();

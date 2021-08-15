@@ -11,7 +11,10 @@
 #include "citron.h"
 
 // TODO: implement state saves / restores for lexer_plug.c
+// TOMOROW :^)
+struct Lexer {
 
+};
 int ctr_clex_bflmt = 255;
 ctr_size ctr_clex_tokvlen = 0; /* length of the string value of a token */
 char *ctr_clex_buffer;
@@ -461,6 +464,19 @@ void ctr_clex_putback() {
   ctr_clex_line_number = ctr_clex_old_line_number;
 }
 
+int ctr_clex_is_valid_digit_in_base(char c, int b) {
+  if (b <= 10) {
+    if ((c >= '0') && (c < ('0' + b)))
+      return 1;
+  } else if (b <= 36) {
+    if ((c >= '0') && (c <= '9'))
+      return 1;
+    else if ((c >= 'A') && (c < 'A' + (b - 10)))
+      return 1;
+  }
+  return 0; // unsupported base or not a digit
+}
+
 ctr_bool check_next_line_empty() {
   if (!regexLineCheck)
     return ctr_code[1] != '\n';
@@ -480,6 +496,57 @@ ctr_bool check_next_line_empty() {
   }
   }
   return false;
+}
+
+static bool ctr_clex_identifier_name(char *name) {
+  size_t len;
+  if (len = ctr_str_startswith(ctr_code, name)) {
+    if (ctr_clex_is_delimiter(ctr_code[len])) {
+      ctr_code += len;
+      return true;
+    }
+  }
+  return false;
+}
+
+static ctr_bool ctr_clex_number() {
+  size_t i = 0;
+  char c = ctr_code[0];
+  int base = 10;
+  if ((c != '-' || !isdigit(ctr_code[1])) && !isdigit(c))
+    return false;
+  ctr_clex_buffer[i++] = c;
+  ++ctr_clex_tokvlen;
+  c = toupper(*++ctr_code);
+  if (ctr_code[-1] == '0') {
+    switch (c) {
+    case 'X': base = 16; break;
+    case 'C': base = 8; break;
+    case 'B': base = 2; break;
+    }
+  }
+  if (base != 10) {
+    if (c != 'C') {
+      ctr_clex_buffer[i++] = c;
+      ctr_clex_tokvlen++;
+    }
+    c = toupper(*++ctr_code);
+  }
+  while ((ctr_clex_is_valid_digit_in_base(c, base))) {
+    ctr_clex_buffer[i++] = c;
+    ctr_clex_tokvlen++;
+    c = toupper(*++ctr_code);
+  }
+  if (c == '.') {
+    if (!ctr_clex_is_valid_digit_in_base(toupper(ctr_code[1]), base))
+      return true;
+    do {
+      ctr_clex_buffer[i++] = c;
+      ctr_clex_tokvlen++;
+      c = toupper(*++ctr_code);
+    } while((ctr_clex_is_valid_digit_in_base(c, base)));
+  }
+  return true;
 }
 
 /**
@@ -600,7 +667,7 @@ void ctr_match_toggle_pragma() {
     v = ctr_clex_tok_value();
     len = ctr_clex_tok_value_length();
     ctr_set_fix(v, len, fixity, prec, lazy);
-  ending:;
+  ending:
     ctr_clex_olderptr = ctr_code;
     ctr_clex_oldptr = ctr_code;
     return;
@@ -613,7 +680,7 @@ void ctr_match_toggle_pragma() {
     ctr_code += l;
     int t0 = ctr_clex_tok();
     if (t0 != TokenTypeRef || lineno != ctr_clex_line_number) {
-    err_v:;
+    err_v:
       ctr_clex_emit_error("Expected an extension name");
       return;
     }
@@ -635,19 +702,6 @@ void ctr_match_toggle_pragma() {
   }
 }
 
-int ctr_clex_is_valid_digit_in_base(char c, int b) {
-  if (b <= 10) {
-    if ((c >= '0') && (c < ('0' + b)))
-      return 1;
-  } else if (b <= 36) {
-    if ((c >= '0') && (c <= '9'))
-      return 1;
-    else if ((c >= 'A') && (c < 'A' + (b - 10)))
-      return 1;
-  }
-  return 0; // unsupported base or not a digit
-}
-
 /**
  * CTRLexerReadToken
  *
@@ -657,7 +711,6 @@ int ctr_clex_is_valid_digit_in_base(char c, int b) {
 enum TokenType ctr_clex_tok() {
   int tinj;
   if ((tinj = do_inject_token()) != -1) {
-    // printf("Injected %d\n", tinj);
     ctr_clex_olderptr = ctr_clex_oldptr;
     ctr_clex_oldptr = ctr_code;
     return tinj;
@@ -823,13 +876,12 @@ enum TokenType ctr_clex_tok() {
     ctr_code++;
     return TokenTypeChain;
   }
-  if (((c == 'i') && (ctr_code[1] == 's') &&
-       isspace(*(ctr_code + 2))) ||
+  if ((c == 'i' && ctr_code[1] == 's' && isspace(ctr_code[2])) ||
       ((c == ':') && (ctr_code[1] == '='))) {
     ctr_code += 2;
     return TokenTypeAssignment;
   }
-  if ((c == '=') && ctr_code[1] == '>') {
+  if (c == '=' && ctr_code[1] == '>') {
     ctr_code += 2;
     return TokenTypePassignment;
   }
@@ -873,59 +925,11 @@ enum TokenType ctr_clex_tok() {
     ctr_code++;
     return TokenTypeQuote;
   }
-  if ((c == '-' && isdigit(ctr_code[1])) || isdigit(c)) {
-    int xnum_likely = c == '0';
-    int base = 10;
-    ctr_clex_buffer[i] = c;
-    ctr_clex_tokvlen++;
-    i++;
-    ctr_code++;
-    c = toupper(*ctr_code);
-    if (xnum_likely)
-      base = c == 'X'   ? 16
-             : c == 'C' ? 8
-             : c == 'B' ? 2
-                        : 10; // let the parser handle incorrect values
-    if (base == 10)
-      xnum_likely = 0; // not an xnum
-    if (base != 10) {
-      if (c != 'C') {
-        ctr_clex_buffer[i] = c;
-        ctr_clex_tokvlen++;
-        i++;
-      } // ignore the C, for strtod
-      ctr_code++;
-      c = toupper(*ctr_code);
-    }
-    while ((ctr_clex_is_valid_digit_in_base(c, base))) {
-      ctr_clex_buffer[i] = c;
-      ctr_clex_tokvlen++;
-      i++;
-      ctr_code++;
-      c = toupper(*ctr_code);
-    }
-    if (c == '.' && !ctr_clex_is_valid_digit_in_base(toupper(ctr_code[1]), base)) {
-      return TokenTypeNumber;
-    }
-    if (c == '.') {
-      ctr_clex_buffer[i] = c;
-      ctr_clex_tokvlen++;
-      i++;
-      ctr_code++;
-      c = toupper(*ctr_code);
-    }
-    while ((ctr_clex_is_valid_digit_in_base(c, base))) {
-      ctr_clex_buffer[i] = c;
-      ctr_clex_tokvlen++;
-      i++;
-      ctr_code++;
-      c = toupper(*ctr_code);
-    }
+  if (ctr_clex_number())
     return TokenTypeNumber;
-  }
   if (c == '`') {
-    ctr_code++;
     struct lexer_state st;
+    ctr_code++;
     ctr_clex_dump_state(&st);
     int t = ctr_clex_tok(), rv = 0;
     if (t == TokenTypeRef) {
@@ -937,60 +941,28 @@ enum TokenType ctr_clex_tok() {
       return TokenTypeInv;
     ctr_code--;
   }
-  if (ctr_str_startswith(ctr_code, "True")) {
-    if (ctr_clex_is_delimiter(ctr_code[4])) {
-      ctr_code += 4;
-      return TokenTypeBooleanyes;
-    }
-  }
-  if (ctr_str_startswith(ctr_code, "False")) {
-    if (ctr_clex_is_delimiter(*(ctr_code + 5))) {
-      ctr_code += 5;
-      return TokenTypeBooleanno;
-    }
-  }
-  if (ctr_str_startswith(ctr_code, "Nil")) {
-    if (ctr_clex_is_delimiter(*(ctr_code + 3))) {
-      ctr_code += 3;
-      return TokenTypeNil;
-    }
-  }
+
+  if (ctr_clex_identifier_name("True"))
+    return TokenTypeBooleanyes;
+  if (ctr_clex_identifier_name("False"))
+    return TokenTypeBooleanno;
+  if (ctr_clex_identifier_name("Nil"))
+    return TokenTypeNil;
 
   /* if we encounter a '?>' sequence, switch to verbatim mode in lexer */
   if (ctr_str_startswith(ctr_code, "?>")) {
     ctr_clex_verbatim_mode = 1;
     ctr_code += 2;
-    // memcpy (ctr_clex_buffer, "?", 1);
-    // ctr_clex_tokvlen = 1;
     return TokenTypeQuote;
   }
 
   /* if lexer is in verbatim mode and we pass the '>' symbol insert a fake quote
    * as next token */
-  if (ctr_str_startswith(ctr_code, ">") && ctr_clex_verbatim_mode) {
+  if (ctr_code[0] == '>' && ctr_clex_verbatim_mode) {
     // ctr_clex_verbatim_mode_insert_quote = (uintptr_t) (ctr_code + 1);      /*
     // this way because multiple invocations should return same result */
-    // ctr_code++;
     return TokenTypeQuote;
-    // memcpy (ctr_clex_buffer, ">", 1);
-    // ctr_clex_tokvlen = 1;
-    // return TokenTypeRef;
   }
-  // if (*ctr_code == ':') {
-  //   int i = 1;
-  //   ctr_code++;
-  //   while(ctr_code[1]!='\0' && *(ctr_code++)==':') i++;
-  //   if(i>ctr_clex_bflmt) ctr_clex_emit_error( "Token buffer exhausted. Tokens
-  //   may not exceed 255 bytes" ); ctr_clex_tokvlen = i>2 ? i-1 : i; //leave
-  //   one ':' for the KWM if more than two chars for(int v=0;
-  //   v<ctr_clex_tokvlen; v++)
-  //     ctr_clex_buffer[v] = ':';
-  //   if(i > 2)
-  //     ctr_code -= 2;
-  //   // else
-  //     // ctr_code;
-  //   return TokenTypeRef;
-  // }
   while (!isspace(c) &&
          (c != '#' && c != '(' && c != ')' && c != '[' && c != ']' &&
           c != '{' && c != '}' && c != '.' && c != ',' && c != '^' &&

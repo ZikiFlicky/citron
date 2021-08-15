@@ -780,7 +780,7 @@ enum TokenType ctr_clex_tok() {
     }
     if (c == '#') {
       comment_mode = 1;
-      if (*(ctr_code + 1) == ':')
+      if (ctr_code[1] == ':')
         pragma_mode = 1;
     }
     if (pragma_mode)
@@ -981,7 +981,7 @@ enum TokenType ctr_clex_tok() {
     ctr_code++;
     if (ctr_code[0] == '\0')
       return TokenTypeRef;
-    c = *ctr_code;
+    c = ctr_code[0];
   }
   return TokenTypeRef;
 }
@@ -1069,7 +1069,7 @@ char *ctr_clex_readfstr() {
     *(strbuff++) = c;
     ctr_code++;
     if (ctr_code[0] != '\0')
-      c = *ctr_code;
+      c = ctr_code[0];
     else {
       ctr_clex_emit_error("Expected closing quote");
       c = '\'';
@@ -1101,7 +1101,7 @@ char *ctr_clex_readstr() {
   ctr_clex_tokvlen = 0;
   strbuff = (char *)ctr_heap_allocate_tracked(memblock);
   tracking_id = ctr_heap_get_latest_tracking_id();
-  c = *ctr_code;
+  c = ctr_code[0];
   beginbuff = strbuff;
   while (/* reading string in non-verbatim mode, read until the first non-escaped quote */
          (!ctr_clex_verbatim_mode && (c != '\'' || escape == 1)) ||
@@ -1175,9 +1175,9 @@ char *ctr_clex_readstr() {
         ctr_code += (is_explicitly_enclosed = ctr_code[1] == '{');
         c = 0;
         while ((is_explicitly_enclosed)
-                   ? *(ctr_code + 1) != '}' && ctr_clex_is_valid_digit_in_base(
-                                                   toupper(*(ctr_code + 1)), 16)
-                   : ctr_clex_is_valid_digit_in_base(toupper(*(ctr_code + 1)),
+                   ? ctr_code[1] != '}' && ctr_clex_is_valid_digit_in_base(
+                                                   toupper(ctr_code[1]), 16)
+                   : ctr_clex_is_valid_digit_in_base(toupper(ctr_code[1]),
                                                      16)) {
           c = c * 16 + ctr_clex_next_number();
         }
@@ -1185,7 +1185,7 @@ char *ctr_clex_readstr() {
           // bitch about it...
           static char err[] =
               "Expected a '}' to close the explicit hex embed, not a '$'";
-          err[55] = *(ctr_code + 1);
+          err[55] = ctr_code[1];
           ctr_clex_emit_error(err);
         }
         break;
@@ -1210,7 +1210,7 @@ char *ctr_clex_readstr() {
         uint32_t uc = 0, is_explicitly_enclosed;
         ctr_code += (is_explicitly_enclosed = ctr_code[1] == '{');
         while (1) {
-          char cc = *(ctr_code + 1);
+          char cc = ctr_code[1];
           if (is_explicitly_enclosed && cc == '}') {
             break;
           }
@@ -1221,11 +1221,11 @@ char *ctr_clex_readstr() {
           uc = (uc << 4) + ((int)(h - hexs));
           ctr_code++;
         }
-        if (is_explicitly_enclosed && *(ctr_code + 1) != '}') {
+        if (is_explicitly_enclosed && ctr_code[1] != '}') {
           // bitch about it...
           static char err[] =
               "Expected a '}' to close the explicit unicode embed, not a '$'";
-          err[59] = *(ctr_code + 1);
+          err[59] = ctr_code[1];
           ctr_clex_emit_error(err);
         }
         if (uc > 0x100FFFF) {
